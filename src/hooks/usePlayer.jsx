@@ -302,18 +302,20 @@ export function PlayerProvider({ children }) {
         try { await audio.play(); } catch (e) { console.error('[Audio] Play error:', e); }
       }
     } else {
-      // For video: launch MPV
-      setMpvMode(true);
-      const result = await ipc.mpv.load(media.filePath);
-      if (result?.error === 'MPV_NOT_FOUND') {
-        // Fallback to video element
-        setMpvMode(false);
-        const audio = audioRef.current;
-        if (audio) {
-          const src = media.filePath.replace(/\\/g, '/');
-          audio.src = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
-          try { await audio.play(); } catch (e) {}
+      // For video: play directly inside the app using HTML5 Video
+      setMpvMode(false);
+      setShowNowPlaying(true); // Automatically slide up the video screen!
+      const audio = audioRef.current;
+      if (audio) {
+        initAudioGraph();
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
         }
+        const src = media.filePath.replace(/\\/g, '/');
+        audio.src = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
+        audio.volume = volume / 100;
+        audio.playbackRate = speed;
+        try { await audio.play(); } catch (e) { console.error('[Video] Play error:', e); }
       }
     }
 
