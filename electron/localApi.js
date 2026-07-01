@@ -1,7 +1,11 @@
-import { dialog } from 'electron';
+import { dialog, BrowserWindow, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { Media, Playlist, History, Settings, Profile, getSetting, setSetting, getAllSettings } from './database.js';
 import { scanFolder, readMetadata, findSubtitlesNear } from './mediaScanner.js';
 import { uploadProfileImage, isOnline } from './cloudinaryProfile.js';
@@ -13,6 +17,44 @@ export function setupLocalApi(ipcMain, mpv, mainWindow) {
   ipcMain.on('win:maximize',  () => mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize());
   ipcMain.on('win:close',     () => mainWindow?.close());
   ipcMain.handle('win:isMaximized', () => mainWindow?.isMaximized() || false);
+
+  let videoWindow = null;
+  ipcMain.handle('video:open', (_, filePath) => {
+    const isDev = !app.isPackaged;
+    
+    if (videoWindow) {
+      videoWindow.focus();
+      videoWindow.webContents.send('video:load', filePath);
+      return;
+    }
+
+    videoWindow = new BrowserWindow({
+      width: 1000,
+      height: 600,
+      minWidth: 480,
+      minHeight: 270,
+      title: 'Video Player',
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload/preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+        webSecurity: false,
+      }
+    });
+
+    const queryPath = encodeURIComponent(filePath);
+    if (isDev) {
+      videoWindow.loadURL(`http://localhost:5173/#/video-player?path=${queryPath}`);
+    } else {
+      videoWindow.loadURL(`file://${path.join(__dirname, '../dist/index.html')}#/video-player?path=${queryPath}`);
+    }
+
+    videoWindow.on('closed', () => {
+      videoWindow = null;
+    });
+  });
 
   // ─── File / Folder Dialog ─────────────────────────────────────────────────
   ipcMain.handle('dialog:openFiles', async () => {

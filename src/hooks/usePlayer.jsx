@@ -302,21 +302,16 @@ export function PlayerProvider({ children }) {
         try { await audio.play(); } catch (e) { console.error('[Audio] Play error:', e); }
       }
     } else {
-      // For video: play directly inside the app using HTML5 Video
-      setMpvMode(false);
-      setShowNowPlaying(true); // Automatically slide up the video screen!
+      // For video: open in a standalone HTML5 player window (built-in VLC style)
+      // Stop the local audio playback so there is no audio overlap
       const audio = audioRef.current;
       if (audio) {
-        initAudioGraph();
-        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        const src = media.filePath.replace(/\\/g, '/');
-        audio.src = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
-        audio.volume = volume / 100;
-        audio.playbackRate = speed;
-        try { await audio.play(); } catch (e) { console.error('[Video] Play error:', e); }
+        audio.pause();
       }
+      setIsPlaying(false);
+      
+      // Open the custom video player window
+      ipc.video.open(media.filePath);
     }
 
     // Add to history

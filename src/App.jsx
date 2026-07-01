@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import TitleBar      from './components/TitleBar.jsx';
@@ -19,11 +19,23 @@ import History   from './pages/History.jsx';
 import Settings  from './pages/Settings.jsx';
 import Themes    from './pages/Themes.jsx';
 import Profile   from './pages/Profile.jsx';
+import VideoPlayer from './pages/VideoPlayer.jsx';
 
 import { usePlayer } from './hooks/usePlayer.jsx';
 import { useLibrary } from './hooks/useLibrary.jsx';
 
 export default function App() {
+  const location = useLocation();
+  const isVideoPlayerRoute = location.pathname === '/video-player';
+
+  if (isVideoPlayerRoute) {
+    return (
+      <Routes>
+        <Route path="/video-player" element={<VideoPlayer />} />
+      </Routes>
+    );
+  }
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { currentMedia } = usePlayer();
   const { dbStatus } = useLibrary();
@@ -58,6 +70,7 @@ export default function App() {
             <Routes>
               <Route path="/"          element={<Navigate to="/home" replace />} />
               <Route path="/home"      element={<Home />} />
+              <Route path="/video-player" element={<VideoPlayer />} />
               <Route path="/library"   element={<Library />} />
               <Route path="/videos"    element={<Videos />} />
               <Route path="/music"     element={<Music />} />

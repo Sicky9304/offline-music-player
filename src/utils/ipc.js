@@ -43,6 +43,10 @@ export const ipc = {
   close:        ()     => e.send('win:close'),
   isMaximized:  ()     => e.invoke('win:isMaximized'),
 
+  video: {
+    open: (filePath) => e.invoke('video:open', filePath),
+  },
+
   // DB status
   dbStatus:     ()     => e.invoke('db:status'),
 
