@@ -1,4 +1,4 @@
-import { dialog, BrowserWindow, app } from 'electron';
+import { dialog, BrowserWindow, app, nativeImage } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -278,10 +278,18 @@ export function setupLocalApi(ipcMain, mpv, mainWindow) {
     if (result.canceled) return { ok: false, reason: 'cancelled' };
     const imagePath = result.filePaths[0];
 
-    // Save locally first
-    const imageData = fs.readFileSync(imagePath);
-    const ext       = path.extname(imagePath);
-    const b64       = `data:image/${ext.replace('.','')};base64,${imageData.toString('base64')}`;
+    // Save locally first - resize to 256x256 using Electron's nativeImage to prevent DB bloat
+    let b64;
+    try {
+      const img = nativeImage.createFromPath(imagePath);
+      const resized = img.resize({ width: 256, height: 256 });
+      b64 = resized.toDataURL();
+    } catch (e) {
+      console.warn('[profile:uploadAvatar] nativeImage resize failed, falling back to full size:', e.message);
+      const imageData = fs.readFileSync(imagePath);
+      const ext       = path.extname(imagePath);
+      b64 = `data:image/${ext.replace('.','')};base64,${imageData.toString('base64')}`;
+    }
 
     let cloudUrl = null;
     const online = await isOnline();

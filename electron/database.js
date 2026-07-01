@@ -91,12 +91,6 @@ export async function connectDatabase() {
 
 export async function disconnectDatabase() {
   if (!isConnected) return;
-  try {
-    await History.deleteMany({});
-    console.log('[DB] Play history cleared successfully on app close');
-  } catch (err) {
-    console.error('[DB] Failed to clear play history on close:', err.message);
-  }
   await mongoose.disconnect();
   isConnected = false;
   console.log('[DB] Disconnected from MongoDB');
@@ -121,4 +115,55 @@ export async function getAllSettings() {
   const result = {};
   docs.forEach(d => { result[d.key] = d.value; });
   return result;
+}
+
+export async function migrateThumbnails() {
+  try {
+    const docs = await Media.find({ thumbnail: { $ne: null } });
+    let migratedCount = 0;
+    for (const doc of docs) {
+      if (doc.thumbnail && doc.thumbnail.startsWith('data:image/')) {
+        const parts = doc.thumbnail.split(';base64,');
+        if (parts.length === 2) {
+          const mime = parts[0];
+          const dataPart = parts[1];
+          if (dataPart.includes(',')) {
+            const bytes = dataPart.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+            if (bytes.length > 0) {
+              const buf = Buffer.from(bytes);
+              const b64 = buf.toString('base64');
+              doc.thumbnail = `${mime};base64,${b64}`;
+              await doc.save();
+              migratedCount++;
+            }
+          }
+        }
+      }
+    }
+    if (migratedCount > 0) {
+      console.log(`[DB Migration] Migrated ${migratedCount} media thumbnails from comma-separated bytes to base64 format.`);
+    }
+  } catch (err) {
+    console.error('[DB Migration] Thumbnail migration failed:', err);
+  }
+}
+
+export async function migrateProfileAvatars() {
+  try {
+    const doc = await Profile.findOne({ uid: 'default' });
+    if (doc && doc.avatar && doc.avatar.startsWith('data:image/')) {
+      // If the base64 string is massive (longer than 200,000 characters, representing a large image)
+      if (doc.avatar.length > 200000) {
+        console.log('[DB Migration] High-resolution profile avatar detected. Resizing to prevent database/Atlas crashes...');
+        const { nativeImage } = await import('electron');
+        const img = nativeImage.createFromDataURL(doc.avatar);
+        const resized = img.resize({ width: 256, height: 256 });
+        doc.avatar = resized.toDataURL();
+        await doc.save();
+        console.log('[DB Migration] Profile avatar successfully resized and optimized.');
+      }
+    }
+  } catch (err) {
+    console.error('[DB Migration] Profile avatar migration failed:', err);
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "offline-media-hub",
+  "name": "music-hub-player",
   "version": "2.0.3",
   "description": "Offline-first desktop music and video player",
   "type": "module",
@@ -14,33 +14,34 @@
     "package": "node -e \"const fs = require('fs'); const path = require('path'); const dir = 'dist-electron'; if (fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => { if (f.endsWith('.exe') || f.endsWith('.blockmap') || f === 'latest.yml') fs.unlinkSync(path.join(dir, f)); })} \" && npm run build && node node_modules/electron-builder/cli.js"
   },
   "dependencies": {
-    "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "electron-updater": "^6.8.9",
-    "framer-motion": "^11.3.2",
-    "lucide-react": "^0.412.0",
     "mongoose": "^8.5.1",
     "music-metadata": "^10.5.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-dropzone": "^14.2.3",
-    "react-router-dom": "^6.25.1",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.19",
+    "autoprefixer": "^10.5.2",
+    "axios": "^1.7.2",
+    "clsx": "^2.1.1",
     "concurrently": "^8.2.2",
     "electron": "^31.7.7",
     "electron-builder": "^26.15.3",
-    "postcss": "^8.4.39",
+    "framer-motion": "^11.3.2",
+    "lucide-react": "^0.412.0",
+    "postcss": "^8.5.16",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-router-dom": "^6.25.1",
     "tailwindcss": "^3.4.6",
     "vite": "^5.3.4",
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.offlinemediahub.app",
-    "productName": "Offline Media Hub",
+    "appId": "com.musichubplayer.app",
+    "productName": "Music Hub Player",
     "publish": {
       "provider": "github",
       "owner": "Sicky9304",
@@ -53,8 +54,7 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "assets/**/*",
-      ".env"
+      "assets/**/*"
     ],
     "win": {
       "target": "nsis",
@@ -66,7 +66,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Offline Media Hub"
+      "shortcutName": "Music Hub Player"
     }
   }
 }

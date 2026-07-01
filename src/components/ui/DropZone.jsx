@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
 import { Upload } from 'lucide-react';
-import { ipc } from '../utils/ipc.js';
-import { useLibrary } from '../hooks/useLibrary.jsx';
+import { useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useLibrary } from '../../hooks/useLibrary.jsx';
+import { ipc } from '../../utils/ipc.js';
 import { useToast } from './Toast.jsx';
 
 const SUPPORTED_EXTENSIONS = new Set([
@@ -20,7 +20,6 @@ export default function DropZone({ className = '', children }) {
   const onDrop = useCallback(async (allFiles) => {
     if (!allFiles?.length) return;
 
-    // Filter files by extension manually instead of relying on browser MIME types
     const validFiles = allFiles.filter(f => {
       const ext = f.name ? f.name.substring(f.name.lastIndexOf('.')).toLowerCase() : '';
       return SUPPORTED_EXTENSIONS.has(ext);
@@ -34,7 +33,6 @@ export default function DropZone({ className = '', children }) {
     const filePaths = validFiles.map(f => f.path || f.name);
     toast.info(`Scanning ${validFiles.length} file(s)…`);
 
-    // Read metadata for each file
     const items = [];
     for (const fp of filePaths) {
       const meta = await ipc.media.getMetadata(fp);
@@ -49,7 +47,6 @@ export default function DropZone({ className = '', children }) {
     }
   }, [importDropped, toast]);
 
-  // Remove browser-level 'accept' constraint so Windows files without mime-type mapping are not blocked
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     noClick: true,
@@ -65,14 +62,22 @@ export default function DropZone({ className = '', children }) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed"
-          style={{ background: 'rgba(0,0,0,0.85)', borderColor: 'var(--accent)' }}
+          className="absolute inset-0 z-[200] flex flex-col items-center justify-center rounded-2xl border-2 border-dashed backdrop-blur-xl transition-all"
+          style={{
+            background: 'rgba(9, 9, 11, 0.85)',
+            borderColor: 'var(--accent)',
+            boxShadow: '0 0 40px rgba(var(--accent-hsl) / 0.25)'
+          }}
         >
-          <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
-            <Upload size={48} style={{ color: 'var(--accent)' }} />
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shadow-lg"
+          >
+            <Upload size={32} style={{ color: 'var(--accent)' }} />
           </motion.div>
-          <p className="mt-4 text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Drop media here</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Supports audio and video files</p>
+          <p className="mt-4 text-lg font-black font-brand text-white">Drop media here</p>
+          <p className="text-xs text-zinc-400 mt-1.5 font-medium">Supports audio and video catalog formats</p>
         </motion.div>
       )}
     </div>

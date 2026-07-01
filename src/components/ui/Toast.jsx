@@ -26,38 +26,38 @@ export default function ToastContainer() {
   }, []);
 
   const icons = {
-    success: <CheckCircle size={16} className="text-green-400" />,
-    error:   <XCircle    size={16} className="text-red-400"   />,
-    info:    <Info       size={16} className="text-blue-400"  />,
-    warning: <AlertTriangle size={16} className="text-yellow-400" />,
+    success: <CheckCircle size={15} className="text-emerald-400" />,
+    error:   <XCircle    size={15} className="text-red-400"   />,
+    info:    <Info       size={15} className="text-sky-400"  />,
+    warning: <AlertTriangle size={15} className="text-amber-400" />,
   };
 
-  const colors = {
-    success: 'border-green-500/30  bg-green-950/80',
-    error:   'border-red-500/30    bg-red-950/80',
-    info:    'border-blue-500/30   bg-blue-950/80',
-    warning: 'border-yellow-500/30 bg-yellow-950/80',
+  const borders = {
+    success: 'border-emerald-500/20 bg-zinc-950/85',
+    error:   'border-red-500/20 bg-zinc-950/85',
+    info:    'border-sky-500/20 bg-zinc-950/85',
+    warning: 'border-amber-500/20 bg-zinc-950/85',
   };
 
   return (
-    <div className="fixed top-16 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-12 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
       <AnimatePresence>
         {toasts.map(t => (
           <motion.div
             key={t.id}
-            initial={{ opacity: 0, x: 60, scale: 0.9 }}
+            initial={{ opacity: 0, x: 50, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 60, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border backdrop-blur-md text-sm font-medium text-white pointer-events-auto shadow-2xl min-w-[240px] max-w-[360px] ${colors[t.type]}`}
+            exit={{ opacity: 0, x: 50, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border backdrop-blur-md text-xs font-bold text-white pointer-events-auto shadow-2xl min-w-[220px] max-w-[340px] ${borders[t.type]}`}
           >
             {icons[t.type]}
-            <span className="flex-1">{t.message}</span>
+            <span className="flex-1 truncate">{t.message}</span>
             <button
               onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
-              className="ml-1 opacity-60 hover:opacity-100 transition-opacity"
+              className="ml-1 opacity-60 hover:opacity-100 transition-opacity p-0.5"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           </motion.div>
         ))}

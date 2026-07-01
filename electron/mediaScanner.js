@@ -85,7 +85,7 @@ export async function readMetadata(filePath) {
       // Extract embedded cover art as base64
       if (common.picture && common.picture.length > 0) {
         const pic = common.picture[0];
-        const b64 = pic.data.toString('base64');
+        const b64 = Buffer.from(pic.data).toString('base64');
         base.thumbnail = `data:${pic.format};base64,${b64}`;
       }
     } catch { /* use defaults */ }

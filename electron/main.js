@@ -4,7 +4,7 @@ const { autoUpdater } = pkg;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { config as loadEnv } from 'dotenv';
-import { connectDatabase, disconnectDatabase } from './database.js';
+import { connectDatabase, disconnectDatabase, migrateThumbnails, migrateProfileAvatars } from './database.js';
 import { setupLocalApi } from './localApi.js';
 import { MpvController } from './mpvController.js';
 
@@ -23,6 +23,10 @@ const mpv = new MpvController();
 async function createWindow() {
   // ─── Connect MongoDB ─────────────────────────────────────────────────────
   const dbResult = await connectDatabase();
+  if (dbResult.ok) {
+    migrateThumbnails();
+    migrateProfileAvatars();
+  }
 
   mainWindow = new BrowserWindow({
     width:           1400,

@@ -9,17 +9,26 @@ import { ThemeProvider }    from './hooks/useTheme.jsx';
 import { SettingsProvider } from './hooks/useSettings.jsx';
 import { LibraryProvider }  from './hooks/useLibrary.jsx';
 import { PlayerProvider }   from './hooks/usePlayer.jsx';
+import { MoodProvider }     from './hooks/useMood.jsx';
+import { ProfileProvider }  from './hooks/useProfile.jsx';
+import ErrorBoundary        from './components/ui/ErrorBoundary.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HashRouter>
       <ThemeProvider>
         <SettingsProvider>
-          <LibraryProvider>
-            <PlayerProvider>
-              <App />
-            </PlayerProvider>
-          </LibraryProvider>
+          <ProfileProvider>
+            <MoodProvider>
+              <LibraryProvider>
+                <PlayerProvider>
+                  <ErrorBoundary>
+                    <App />
+                  </ErrorBoundary>
+                </PlayerProvider>
+              </LibraryProvider>
+            </MoodProvider>
+          </ProfileProvider>
         </SettingsProvider>
       </ThemeProvider>
     </HashRouter>

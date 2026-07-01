@@ -6,19 +6,15 @@ A modern, offline-first desktop music and video player built with **Electron**, 
 
 ## ✨ Features
 
-- 🎵 Play audio: MP3, FLAC, WAV, AAC, M4A, OGG, OPUS, WMA, AIFF, APE
-- 🎬 Play video: MP4, MKV, AVI, MOV, WEBM, FLV, WMV, M4V, TS
-- 📁 Drag & drop files/folders
-- 🗃️ MongoDB-backed library, playlists, history, settings, profile
-- 🎨 7 themes: Dark, Light, AMOLED, Neon, Studio, Glass, Classic
-- 🌈 10 accent colors
-- ❤️ Favorites
-- 📜 Play history
-- 🎶 Playlists (create, rename, delete)
-- 🔀 Shuffle & repeat modes
-- ⚡ Now playing full-screen view
-- 👤 Profile with avatar (Cloudinary sync when online, local fallback offline)
-- 🔒 100% offline media playback — no uploads, no cloud for media files
+- 🎵 **Multi-format Playback:** Play audio (MP3, FLAC, WAV, AAC, M4A, OGG, OPUS, etc.) and video (MP4, MKV, AVI, MOV, WEBM, etc.) files offline.
+- 🎛️ **5-Band Sound Equalizer:** Integrated audio graph equalizer (60Hz, 230Hz, 910Hz, 4kHz, 14kHz) with 6 built-in curves (Flat, Bass Booster, Vocal Booster, Rock, Electronic, Jazz).
+- ☁️ **Sound Preset Studio:** Download advanced preset profiles (e.g. Bass Extreme, Podcast Voice) from the online cloud library or import local preset `.json` files.
+- 🎨 **Theme & Accent Studio:** Choose between 8+ premium themes (Dark, Light, AMOLED, Neon, Studio, Glass, Classic, 3D Space) and 10 dynamic accent colors.
+- 📥 **Theme Import & Export:** Export your active theme settings to `.json` files or import custom themes dynamically.
+- 🎬 **Premium Spotify-Style Animations:** Spotify-like bobbing covers and slide-out spinning vinyl disc animations in the Featured sections.
+- 📁 **Drag & Drop Scanning:** Effortless folder scanner with dynamic metadata and file size calculations.
+- 🗃️ **MongoDB Library State:** Full local database backing libraries, playlists, histories, custom profiles, and configurations.
+- 🔒 **Privacy-First:** 100% offline media playback — no tracks or metadata ever leave your machine.
 
 ---
 

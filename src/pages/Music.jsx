@@ -1,16 +1,17 @@
 import { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Music as MusicIcon, Grid, List } from 'lucide-react';
 import { useLibrary } from '../hooks/useLibrary.jsx';
-import { useTheme } from '../hooks/useTheme.jsx';
-import MediaCard from '../components/MediaCard.jsx';
-import PlaylistModal from '../components/PlaylistModal.jsx';
+import MediaCard from '../components/player/MediaCard.jsx';
+import PlaylistModal from '../components/playlist/PlaylistModal.jsx';
 import { motion } from 'framer-motion';
+import SectionHeader from '../components/ui/SectionHeader.jsx';
+import SearchBar from '../components/ui/SearchBar.jsx';
 
 export default function Music() {
   const { library } = useLibrary();
-  const { themeId } = useTheme();
   const [search, setSearch] = useState('');
   const [groupBy, setGroupBy] = useState('none');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [plModal, setPlModal] = useState(null);
 
   const tracks = useMemo(() => {
@@ -36,44 +37,79 @@ export default function Music() {
   }, [tracks, groupBy]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 px-6 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit, sans-serif' }}>Music</h1>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>{tracks.length} tracks</p>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border flex-1 max-w-xs" style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border)' }}>
-            <Search size={15} style={{ color: 'var(--text-muted)' }} />
-            <input id="music-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tracks…"
-              className="bg-transparent text-sm outline-none flex-1" style={{ color: 'var(--text-primary)' }} />
+    <div className="flex flex-col h-full page-enter">
+      {/* Header bar */}
+      <div className="flex-shrink-0 px-6 py-5 border-b" style={{ borderColor: 'var(--glass-border)' }}>
+        <SectionHeader
+          title="Music Library"
+          subtitle={`${tracks.length} tracks found`}
+          badge="Your Collection"
+          icon={MusicIcon}
+        />
+        
+        {/* Controls strip */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+          <div className="flex items-center gap-3 flex-1 max-w-sm">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search tracks…"
+              onClear={() => setSearch('')}
+              className="h-10 text-xs rounded-xl"
+            />
+            
+            <select 
+              id="music-group" 
+              value={groupBy} 
+              onChange={e => setGroupBy(e.target.value)}
+              className="px-3 py-2 rounded-xl text-xs border outline-none bg-zinc-900 border-white/5 text-zinc-300 font-semibold h-10"
+            >
+              <option value="none">No Grouping</option>
+              <option value="artist">By Artist</option>
+              <option value="album">By Album</option>
+            </select>
           </div>
-          <select id="music-group" value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            className="px-3 py-2 rounded-xl text-sm border outline-none"
-            style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-            <option value="none">No grouping</option>
-            <option value="artist">By Artist</option>
-            <option value="album">By Album</option>
-          </select>
+
+          {/* View mode buttons */}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-zinc-950 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+              title="List View"
+            >
+              <List size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-zinc-950 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+              title="Grid View"
+            >
+              <Grid size={14} />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Track catalog */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {tracks.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-48 text-center">
-            <span className="text-5xl mb-3">🎵</span>
-            <p className="text-lg font-semibold" style={{ color: 'var(--text-secondary)' }}>No music yet</p>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Add audio files from the Library page</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-48 text-center space-y-2">
+            <span className="text-4xl">🎵</span>
+            <p className="text-sm font-bold text-zinc-400">No music yet</p>
+            <p className="text-xs text-zinc-500">Drop audio files or scan folder on the Library tab.</p>
           </motion.div>
         ) : (
           Object.entries(grouped).map(([group, items]) => (
-            <div key={group}>
-              {group && <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>{group}</h2>}
-              <div className={themeId === 'theme3d' ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" : "space-y-1"}>
+            <div key={group} className="space-y-3">
+              {group && <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{group}</h2>}
+              <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" : "space-y-1"}>
                 {items.map((m, i) => (
                   <MediaCard
                     key={m.id}
                     media={m}
                     queue={items}
                     index={i}
-                    compact={themeId !== 'theme3d'}
+                    compact={viewMode === 'list'}
                     onAddToPlaylist={setPlModal}
                   />
                 ))}

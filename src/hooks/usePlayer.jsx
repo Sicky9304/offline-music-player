@@ -2,12 +2,22 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import { ipc } from '../utils/ipc.js';
 import { shuffle } from '../utils/formatters.js';
 import { useSettings } from './useSettings.jsx';
+import { useLibrary } from './useLibrary.jsx';
 
 const PlayerContext = createContext(null);
 
 export const REPEAT_NONE  = 'none';
 export const REPEAT_ONE   = 'one';
 export const REPEAT_ALL   = 'all';
+
+export const BUILTIN_PRESETS = [
+  { id: "flat", name: "Flat", description: "No equalization", gains: [0, 0, 0, 0, 0] },
+  { id: "bass-booster", name: "Bass Booster", description: "Boost low frequencies", gains: [6, 4, 0, 0, -2] },
+  { id: "vocal-booster", name: "Vocal Booster", description: "Boost midrange clarity", gains: [-2, 0, 4, 4, 2] },
+  { id: "rock", name: "Rock", description: "Heavy bass and high treble", gains: [4, 2, -2, 2, 4] },
+  { id: "electronic", name: "Electronic", description: "Vibrant bass and treble", gains: [4, 2, -1, 2, 4] },
+  { id: "jazz", name: "Jazz", description: "Soft bass and warm highs", gains: [3, 2, 1, 2, 1] },
+];
 
 export function PlayerProvider({ children }) {
   const audioRef = useRef(null);
@@ -25,8 +35,53 @@ export function PlayerProvider({ children }) {
   const [repeat,       setRepeat]         = useState(REPEAT_NONE);
   const [showNowPlaying, setShowNowPlaying] = useState(false);
   const [mpvMode,      setMpvMode]        = useState(false); // true = using MPV for playback
+  const [sleepTimerEnd, setSleepTimerEnd]  = useState(null);  // timestamp when timer expires
+  const sleepTimerRef = useRef(null);
+
+  const [activePresetId, setActivePresetId] = useState('flat');
+  const [customPresets, setCustomPresets] = useState([]);
+
+  const activePresetIdRef = useRef('flat');
+  const customPresetsRef = useRef([]);
+
+  useEffect(() => {
+    activePresetIdRef.current = activePresetId;
+  }, [activePresetId]);
+
+  useEffect(() => {
+    customPresetsRef.current = customPresets;
+  }, [customPresets]);
+
+  // Load custom presets on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await ipc.settings.getAll();
+        if (all.activePresetId) {
+          setActivePresetId(all.activePresetId);
+        }
+        if (all.customPresets) {
+          setCustomPresets(JSON.parse(all.customPresets));
+        }
+      } catch (e) {
+        console.error('Failed to load EQ presets:', e);
+      }
+    })();
+  }, []);
 
   const { settings, updateSetting } = useSettings();
+  const { addHistory, library } = useLibrary();
+
+  const handleEndedRef = useRef(null);
+
+  // Sync currentMedia with library updates (like favorite state)
+  useEffect(() => {
+    if (!currentMedia) return;
+    const match = library.find(m => m.id === currentMedia.id);
+    if (match && match.favorite !== currentMedia.favorite) {
+      setCurrentMedia(match);
+    }
+  }, [library, currentMedia]);
 
   // Web Audio API refs for Dolby Atmos spatializer
   const audioCtxRef = useRef(null);
@@ -36,6 +91,7 @@ export function PlayerProvider({ children }) {
   const atmosNodesRef = useRef(null);
   const masterPreAmpGainNodeRef = useRef(null);
   const compressorNodeRef = useRef(null);
+  const eqFiltersRef = useRef([]);
 
   // Toggle Dolby Atmos wrapper
   const setDolbyAtmos = useCallback((enabled) => {
@@ -201,9 +257,47 @@ export function PlayerProvider({ children }) {
       bypassGain.connect(masterPreAmpGain);
       atmosOutput.connect(masterPreAmpGain);
 
+      // Create 5-band Equalizer filters
+      const eqFrequencies = [60, 230, 910, 4000, 14000];
+      const eqFilters = eqFrequencies.map((freq, idx) => {
+        const filter = ctx.createBiquadFilter();
+        if (idx === 0) {
+          filter.type = 'lowshelf';
+        } else if (idx === eqFrequencies.length - 1) {
+          filter.type = 'highshelf';
+        } else {
+          filter.type = 'peaking';
+        }
+        filter.frequency.value = freq;
+        filter.Q.value = 1.0;
+        filter.gain.value = 0; // Default flat
+        return filter;
+      });
+      eqFiltersRef.current = eqFilters;
+
+      // Connect Master Pre-Amp Gain to the first EQ filter
+      masterPreAmpGain.connect(eqFilters[0]);
+
+      // Connect EQ filters in series
+      for (let i = 0; i < eqFilters.length - 1; i++) {
+        eqFilters[i].connect(eqFilters[i + 1]);
+      }
+
+      // Connect the last EQ filter to the compressor
+      eqFilters[eqFilters.length - 1].connect(compressor);
+
       // Route through Compressor to protect laptop speakers and boost volume
-      masterPreAmpGain.connect(compressor);
       compressor.connect(ctx.destination);
+
+      // Apply active preset gains
+      const pId = activePresetIdRef.current || 'flat';
+      const allPresets = [...BUILTIN_PRESETS, ...customPresetsRef.current];
+      const match = allPresets.find(p => p.id === pId) || allPresets[0];
+      if (match) {
+        eqFilters.forEach((filter, idx) => {
+          filter.gain.value = match.gains[idx] !== undefined ? match.gains[idx] : 0;
+        });
+      }
 
       atmosNodesRef.current = { splitter, atmosOutput, channels };
 
@@ -243,7 +337,7 @@ export function PlayerProvider({ children }) {
       setDuration(audio.duration || 0);
       setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
     };
-    const onEnded = () => handleEnded();
+    const onEnded = () => handleEndedRef.current && handleEndedRef.current();
     const onPlay  = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onError = (e) => console.error('[Audio] Error:', e);
@@ -263,14 +357,6 @@ export function PlayerProvider({ children }) {
       audio.pause();
     };
   }, []);
-
-  const handleEnded = useCallback(() => {
-    if (repeat === REPEAT_ONE) {
-      audioRef.current?.play();
-      return;
-    }
-    playNext();
-  }, [repeat, queueIndex, queue]);
 
   // ─── Play a media item ────────────────────────────────────────────────────
   const playMedia = useCallback(async (media, queueList = null, startIndex = 0) => {
@@ -296,7 +382,8 @@ export function PlayerProvider({ children }) {
           audioCtxRef.current.resume();
         }
         const src = media.filePath.replace(/\\/g, '/');
-        audio.src = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
+        const fileUrl = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
+        audio.src = encodeURI(fileUrl);
         audio.volume = volume / 100;
         audio.playbackRate = speed;
         try { await audio.play(); } catch (e) { console.error('[Audio] Play error:', e); }
@@ -316,7 +403,7 @@ export function PlayerProvider({ children }) {
 
     // Add to history
     try {
-      await ipc.history.add({
+      await addHistory({
         mediaId:  media.id,
         filePath: media.filePath,
         title:    media.title,
@@ -325,7 +412,7 @@ export function PlayerProvider({ children }) {
         position: 0,
       });
     } catch (_) {}
-  }, [volume, speed, shuffle_]);
+  }, [volume, speed, shuffle_, addHistory]);
 
   const playNext = useCallback(() => {
     if (!queue.length) return;
@@ -350,6 +437,16 @@ export function PlayerProvider({ children }) {
     setQueueIndex(prev);
     playMedia(queue[prev]);
   }, [queue, queueIndex, currentTime, repeat, playMedia]);
+
+  const handleEnded = useCallback(() => {
+    if (repeat === REPEAT_ONE) {
+      audioRef.current?.play();
+      return;
+    }
+    playNext();
+  }, [repeat, playNext]);
+
+  handleEndedRef.current = handleEnded;
 
   const togglePlay = useCallback(async () => {
     if (mpvMode) {
@@ -456,6 +553,74 @@ export function PlayerProvider({ children }) {
     setQueueIndex(-1);
   }, []);
 
+  // ─── Sleep Timer ──────────────────────────────────────────────────────────
+  const setSleepTimer = useCallback((minutes) => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    if (!minutes || minutes <= 0) {
+      setSleepTimerEnd(null);
+      return;
+    }
+    const endTime = Date.now() + minutes * 60 * 1000;
+    setSleepTimerEnd(endTime);
+    sleepTimerRef.current = setTimeout(() => {
+      // Auto-pause when timer expires
+      const audio = audioRef.current;
+      if (audio) audio.pause();
+      setIsPlaying(false);
+      setSleepTimerEnd(null);
+    }, minutes * 60 * 1000);
+  }, []);
+
+  const clearSleepTimer = useCallback(() => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    setSleepTimerEnd(null);
+  }, []);
+
+  // Cleanup sleep timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    };
+  }, []);
+
+  const applyPresetGains = useCallback((gains) => {
+    if (!eqFiltersRef.current || eqFiltersRef.current.length === 0) return;
+    const now = audioCtxRef.current ? audioCtxRef.current.currentTime : 0;
+    eqFiltersRef.current.forEach((filter, index) => {
+      const gainVal = gains[index] !== undefined ? gains[index] : 0;
+      if (audioCtxRef.current) {
+        filter.gain.setTargetAtTime(gainVal, now, 0.015);
+      } else {
+        filter.gain.value = gainVal;
+      }
+    });
+  }, []);
+
+  const setEqPreset = useCallback(async (presetId) => {
+    setActivePresetId(presetId);
+    await ipc.settings.set('activePresetId', presetId);
+    const allPresets = [...BUILTIN_PRESETS, ...customPresets];
+    const match = allPresets.find(p => p.id === presetId);
+    if (match) {
+      applyPresetGains(match.gains);
+    }
+  }, [customPresets, applyPresetGains]);
+
+  const importEqPreset = useCallback(async (presetData) => {
+    const newPreset = {
+      id: presetData.id || `eq-custom-${Date.now()}`,
+      name: presetData.name || 'Imported Preset',
+      description: presetData.description || 'User sound preset',
+      gains: presetData.gains || [0, 0, 0, 0, 0]
+    };
+    const nextCustom = [...customPresets, newPreset];
+    setCustomPresets(nextCustom);
+    await ipc.settings.set('customPresets', JSON.stringify(nextCustom));
+    setActivePresetId(newPreset.id);
+    await ipc.settings.set('activePresetId', newPreset.id);
+    applyPresetGains(newPreset.gains);
+  }, [customPresets, applyPresetGains]);
+
   return (
     <PlayerContext.Provider value={{
       currentMedia, queue, queueIndex,
@@ -474,6 +639,12 @@ export function PlayerProvider({ children }) {
       seekTo, seekSeconds, changeVolume, toggleMute, changeSpeed,
       toggleShuffle, cycleRepeat,
       addToQueue, clearQueue, setQueue, setQueueIndex,
+      sleepTimerEnd, setSleepTimer, clearSleepTimer,
+      activePresetId,
+      presets: [...BUILTIN_PRESETS, ...customPresets],
+      customPresets,
+      setEqPreset,
+      importEqPreset,
     }}>
       {children}
     </PlayerContext.Provider>

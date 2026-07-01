@@ -73,3 +73,31 @@ export function shuffle(array) {
   }
   return arr;
 }
+
+// ─── Greeting Based on Time of Day ──────────────────────────────────────────
+export function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+export function countMostPlayed(history, library) {
+  if (!history?.length || !library?.length) return [];
+  const freq = {};
+  history.forEach(h => {
+    const track = library.find(m => m.id === h.mediaId || m.filePath === h.filePath);
+    if (track) {
+      freq[track.id] = (freq[track.id] || 0) + 1;
+    }
+  });
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([trackId, count]) => {
+      const track = library.find(m => m.id === trackId);
+      return track ? { ...track, playCount: count } : null;
+    })
+    .filter(Boolean);
+}
+

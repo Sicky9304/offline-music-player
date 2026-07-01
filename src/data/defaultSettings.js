@@ -30,4 +30,13 @@ export const DEFAULT_SETTINGS = {
   // Theme (persisted via themeId + accentId in settings)
   themeId:           'dark',
   accentId:          'violet',
+
+  // Dynamic theme
+  dynamicTheme:      true,
+
+  // Mood
+  activeMood:        null,
+
+  // Sleep timer (minutes, 0 = off)
+  sleepTimer:        0,
 };
