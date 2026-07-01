@@ -22,7 +22,7 @@ export default function NowPlaying() {
     togglePlay, playNext, playPrev, seekTo, seekSeconds,
     changeVolume, toggleMute, changeSpeed, toggleShuffle, cycleRepeat,
     showNowPlaying, setShowNowPlaying,
-    audioRef,
+    audioRef, mpvMode,
     // Dolby Atmos fields
     dolbyAtmos, setDolbyAtmos,
     atmosMode, setAtmosMode,
@@ -41,10 +41,25 @@ export default function NowPlaying() {
   const [tiltX, setTiltX] = useState(0);
   const [tiltY, setTiltY] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const videoContainerRef = useRef(null);
 
   useEffect(() => {
     setImgError(false);
   }, [currentMedia?.id]);
+
+  useEffect(() => {
+    if (videoContainerRef.current && audioRef?.current && currentMedia?.type === 'video' && !mpvMode) {
+      const videoElement = audioRef.current;
+      videoElement.className = "w-full h-full object-contain bg-black";
+      videoContainerRef.current.appendChild(videoElement);
+
+      return () => {
+        if (videoElement.parentNode === videoContainerRef.current) {
+          videoContainerRef.current.removeChild(videoElement);
+        }
+      };
+    }
+  }, [currentMedia?.id, mpvMode, showNowPlaying, audioRef]);
 
   const handleContainerMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -421,7 +436,9 @@ export default function NowPlaying() {
                   transformStyle: 'preserve-3d'
                 }}
               >
-                {currentMedia.thumbnail && !imgError ? (
+                {currentMedia.type === 'video' && !mpvMode ? (
+                  <div ref={videoContainerRef} className="w-full h-full bg-black flex items-center justify-center" />
+                ) : currentMedia.thumbnail && !imgError ? (
                   <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                 ) : currentMedia.type === 'audio' ? (
                   <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} />
@@ -435,30 +452,32 @@ export default function NowPlaying() {
               </motion.div>
 
               {/* Black Vinyl disc */}
-              <motion.div
-                initial={{ x: 0 }}
-                animate={{ x: isPlaying ? 75 : 20 }}
-                transition={{ type: 'spring', stiffness: 120, damping: 15 }}
-                className="absolute w-56 h-56 rounded-full vinyl-grooves flex items-center justify-center shadow-2xl z-0"
-              >
-                <div className={`absolute inset-0 rounded-full vinyl-reflection animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} />
-                <div className={`absolute inset-0 rounded-full vinyl-reflection-holographic animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} />
-                
-                {/* Center hole and mini artwork label */}
-                <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center overflow-hidden relative">
-                  {currentMedia.thumbnail && !imgError ? (
-                    <img src={currentMedia.thumbnail} alt="" className={`w-full h-full object-cover rounded-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} onError={() => setImgError(true)} />
-                  ) : currentMedia.type === 'audio' ? (
-                    <div className={`w-full h-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`}>
-                      <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} isCompact />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full bg-zinc-950 flex items-center justify-center text-lg">🎬</div>
-                  )}
-                  {/* Vinyl spindle hole */}
-                  <div className="absolute w-3.5 h-3.5 rounded-full bg-black shadow-inner" />
-                </div>
-              </motion.div>
+              {(currentMedia.type !== 'video' || mpvMode) && (
+                <motion.div
+                  initial={{ x: 0 }}
+                  animate={{ x: isPlaying ? 75 : 20 }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+                  className="absolute w-56 h-56 rounded-full vinyl-grooves flex items-center justify-center shadow-2xl z-0"
+                >
+                  <div className={`absolute inset-0 rounded-full vinyl-reflection animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} />
+                  <div className={`absolute inset-0 rounded-full vinyl-reflection-holographic animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} />
+                  
+                  {/* Center hole and mini artwork label */}
+                  <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center overflow-hidden relative">
+                    {currentMedia.thumbnail && !imgError ? (
+                      <img src={currentMedia.thumbnail} alt="" className={`w-full h-full object-cover rounded-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} onError={() => setImgError(true)} />
+                    ) : currentMedia.type === 'audio' ? (
+                      <div className={`w-full h-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`}>
+                        <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} isCompact />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-zinc-950 flex items-center justify-center text-lg">🎬</div>
+                    )}
+                    {/* Vinyl spindle hole */}
+                    <div className="absolute w-3.5 h-3.5 rounded-full bg-black shadow-inner" />
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Bottom Section: Info + Seek + Controls */}

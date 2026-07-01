@@ -234,7 +234,7 @@ export function PlayerProvider({ children }) {
 
   // Create audio element
   useEffect(() => {
-    const audio = new Audio();
+    const audio = document.createElement('video');
     audio.volume   = volume / 100;
     audioRef.current = audio;
 
