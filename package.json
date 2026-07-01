@@ -1,6 +1,6 @@
 {
   "name": "music-hub-player",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Offline-first desktop music and video player",
   "type": "module",
   "main": "electron/main.js",
