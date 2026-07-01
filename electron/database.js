@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
-import { config as loadEnv } from 'dotenv';
+import './env.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-loadEnv({ path: path.join(__dirname, '../.env') });
+
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/offline-media-hub';
 

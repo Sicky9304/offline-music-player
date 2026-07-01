@@ -4,7 +4,7 @@ const { autoUpdater } = pkg;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
-import { config as loadEnv } from 'dotenv';
+import './env.js';
 import { connectDatabase, disconnectDatabase, migrateThumbnails, migrateProfileAvatars } from './database.js';
 import { setupLocalApi } from './localApi.js';
 import { MpvController } from './mpvController.js';
@@ -13,8 +13,6 @@ import { MpvController } from './mpvController.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// ─── Load .env ────────────────────────────────────────────────────────────────
-loadEnv({ path: path.join(__dirname, '../.env') });
 
 const isDev = !app.isPackaged;
 

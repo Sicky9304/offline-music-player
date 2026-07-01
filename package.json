@@ -54,7 +54,8 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "assets/**/*"
+      "assets/**/*",
+      ".env"
     ],
     "win": {
       "target": "nsis",
