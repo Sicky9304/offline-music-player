@@ -6,7 +6,7 @@ import { usePlayer } from '../hooks/usePlayer.jsx';
 import MediaCard from '../components/MediaCard.jsx';
 import ThreeDArtwork from '../components/ThreeDArtwork.jsx';
 
-const MOODS = [
+const MODS = [
   { id: 'relieved',  emoji: '😌', label: 'Relieved',  color: '#21d8b9', desc: 'Chill & Relaxing' },
   { id: 'happy',     emoji: '😊', label: 'Happy',     color: '#febc2e', desc: 'Upbeat & Cheerful' },
   { id: 'energetic', emoji: '⚡', label: 'Energetic',  color: '#ff5f57', desc: 'High Energy & Dance' },
