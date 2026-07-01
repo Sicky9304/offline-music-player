@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Music, Video, Heart, MoreVertical, Play, Plus, Trash2, Star } from 'lucide-react';
 import { formatDuration, formatRelativeDate, truncate } from '../utils/formatters.js';
@@ -15,6 +15,14 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
 
   const isActive  = currentMedia?.id === media.id;
   const isAudio   = media.type === 'audio';
+
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [media.id]);
+
+  const hasThumbnail = media.thumbnail && !imgError;
 
   const handlePlay = () => {
     playMedia(media, queue || [media], index);
@@ -68,8 +76,8 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
         {/* Thumbnail */}
         <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
           style={{ background: 'var(--bg-tertiary)' }}>
-          {media.thumbnail
-            ? <img src={media.thumbnail} alt="" className="w-full h-full object-cover" />
+          {hasThumbnail
+            ? <img src={media.thumbnail} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
             : isAudio
               ? <ThreeDArtwork title={media.title} id={media.id} isCompact />
               : <span className="text-xl">🎬</span>
@@ -124,8 +132,8 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
       {/* Art */}
       <div className="relative aspect-square flex items-center justify-center overflow-hidden"
         style={{ background: 'var(--bg-tertiary)' }}>
-        {media.thumbnail
-          ? <img src={media.thumbnail} alt={media.title} className="w-full h-full object-cover" />
+        {hasThumbnail
+          ? <img src={media.thumbnail} alt={media.title} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           : isAudio
             ? <ThreeDArtwork title={media.title} id={media.id} />
             : (

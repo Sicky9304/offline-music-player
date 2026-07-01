@@ -40,6 +40,11 @@ export default function NowPlaying() {
   const [dominantColor, setDominantColor] = useState('124, 58, 237'); // Default purple
   const [tiltX, setTiltX] = useState(0);
   const [tiltY, setTiltY] = useState(0);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [currentMedia?.id]);
 
   const handleContainerMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -416,8 +421,8 @@ export default function NowPlaying() {
                   transformStyle: 'preserve-3d'
                 }}
               >
-                {currentMedia.thumbnail ? (
-                  <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" />
+                {currentMedia.thumbnail && !imgError ? (
+                  <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                 ) : currentMedia.type === 'audio' ? (
                   <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} />
                 ) : (
@@ -441,8 +446,8 @@ export default function NowPlaying() {
                 
                 {/* Center hole and mini artwork label */}
                 <div className="w-20 h-20 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center overflow-hidden relative">
-                  {currentMedia.thumbnail ? (
-                    <img src={currentMedia.thumbnail} alt="" className={`w-full h-full object-cover rounded-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} />
+                  {currentMedia.thumbnail && !imgError ? (
+                    <img src={currentMedia.thumbnail} alt="" className={`w-full h-full object-cover rounded-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`} onError={() => setImgError(true)} />
                   ) : currentMedia.type === 'audio' ? (
                     <div className={`w-full h-full animate-rotate-vinyl ${isPlaying ? '' : 'animation-paused'}`}>
                       <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} isCompact />

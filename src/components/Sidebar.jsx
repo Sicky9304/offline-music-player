@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import {
   Library, Video, Music, ListMusic, Heart, History,
   Settings, Palette, User, ChevronLeft, ChevronRight,
@@ -28,6 +29,11 @@ const SETTINGS_ITEMS = [
 export default function Sidebar({ collapsed, onToggle }) {
   const { dbStatus, library } = useLibrary();
   const { currentMedia, isPlaying } = usePlayer();
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [currentMedia?.id]);
 
   return (
     <motion.aside
@@ -65,8 +71,8 @@ export default function Sidebar({ collapsed, onToggle }) {
           >
             <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
               style={{ background: 'var(--accent)', opacity: 0.85 }}>
-              {currentMedia.thumbnail
-                ? <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" />
+              {currentMedia.thumbnail && !imgError
+                ? <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                 : currentMedia.type === 'audio'
                   ? <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} isCompact />
                   : <Music size={16} className="text-white" />

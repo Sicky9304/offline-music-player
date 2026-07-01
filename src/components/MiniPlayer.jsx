@@ -7,7 +7,7 @@ import { usePlayer, REPEAT_NONE, REPEAT_ONE, REPEAT_ALL } from '../hooks/usePlay
 import { useLibrary } from '../hooks/useLibrary.jsx';
 import { formatDuration, truncate } from '../utils/formatters.js';
 import EqualizerBars from './EqualizerBars.jsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ThreeDArtwork from './ThreeDArtwork.jsx';
 
 export default function MiniPlayer({ onExpand }) {
@@ -20,6 +20,11 @@ export default function MiniPlayer({ onExpand }) {
 
   const { toggleFavorite } = useLibrary();
   const [dragging, setDragging] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [currentMedia?.id]);
 
   if (!currentMedia) return null;
 
@@ -60,8 +65,8 @@ export default function MiniPlayer({ onExpand }) {
         >
           <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center shadow-lg"
             style={{ background: 'var(--bg-tertiary)' }}>
-            {currentMedia.thumbnail
-              ? <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" />
+            {currentMedia.thumbnail && !imgError
+              ? <img src={currentMedia.thumbnail} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
               : currentMedia.type === 'audio'
                 ? <ThreeDArtwork title={currentMedia.title} id={currentMedia.id} isCompact />
                 : <span className="text-2xl">🎬</span>
