@@ -1,0 +1,252 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Variables (Dark theme default) ────────────────────────────────────── */
+:root {
+  --bg-primary:    #09090b;
+  --bg-secondary:  #18181b;
+  --bg-tertiary:   #27272a;
+  --bg-card:       #1c1c1f;
+  --border:        #3f3f46;
+  --text-primary:  #fafafa;
+  --text-secondary:#a1a1aa;
+  --text-muted:    #71717a;
+  --accent:        #7c3aed;
+  --accent-hsl:    263 70% 57%;
+  --accent-50:     #f5f3ff;
+  --accent-100:    #ede9fe;
+  --accent-200:    #ddd6fe;
+  --accent-300:    #c4b5fd;
+  --accent-400:    #a78bfa;
+  --accent-500:    #7c3aed;
+  --accent-600:    #6d28d9;
+  --accent-700:    #5b21b6;
+  --accent-800:    #4c1d95;
+  --accent-900:    #2e1065;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ─── Input range (volume/progress) ─────────────────────────────────────────── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--bg-tertiary);
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.1s;
+  box-shadow: 0 0 6px var(--accent);
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+/* ─── Focus ──────────────────────────────────────────────────────────────────── */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ─── Transitions ────────────────────────────────────────────────────────────── */
+* {
+  transition-duration: 150ms;
+}
+
+/* ─── Glass effect utility ───────────────────────────────────────────────────── */
+.glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Animated gradient text ─────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent), var(--accent-300));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── No-drag for interactive elements ───────────────────────────────────────── */
+button, input, select, textarea, a {
+  -webkit-app-region: no-drag;
+}
+
+/* ─── 3D & Hologram Styles ─────────────────────────────────────────────────── */
+.glass-panel {
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  background: rgba(20, 20, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glow-border {
+  border: 1px solid rgba(var(--accent-hsl) / 0.15);
+  box-shadow: 0 0 15px rgba(var(--accent-hsl) / 0.05);
+}
+
+.glow-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glow-hover:hover {
+  box-shadow: 0 0 25px rgba(var(--accent-hsl) / 0.35);
+  border-color: rgba(var(--accent-hsl) / 0.5);
+  transform: translateY(-2px);
+}
+
+.hologram-grid {
+  background-image: 
+    linear-gradient(rgba(var(--accent-hsl) / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-hsl) / 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* ─── Realistic Vinyl Grooves ──────────────────────────────────────────────── */
+.vinyl-grooves {
+  background: 
+    repeating-radial-gradient(
+      circle,
+      #111 0px,
+      #111 4px,
+      #1c1c1c 5px,
+      #111 6px
+    );
+  box-shadow: 
+    inset 0 0 12px rgba(0, 0, 0, 0.85),
+    0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Diagonal reflection glare for realistic vinyl gloss */
+.vinyl-reflection {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.03) 30deg,
+    transparent 60deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.03) 210deg,
+    transparent 240deg,
+    transparent 360deg
+  );
+  pointer-events: none;
+}
+
+/* Holographic dynamic gradient reflection overlay */
+.vinyl-reflection-holographic {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.08) 30deg,
+    rgba(124, 58, 237, 0.12) 90deg,
+    transparent 120deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.08) 210deg,
+    rgba(236, 72, 153, 0.12) 270deg,
+    transparent 300deg,
+    transparent 360deg
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* 3D card layout setup */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+@keyframes rotate-vinyl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-rotate-vinyl {
+  animation: rotate-vinyl 18s linear infinite;
+}
+
+.animation-paused {
+  animation-play-state: paused !important;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(var(--accent-hsl) / 0.1), 0 0 5px rgba(var(--accent-hsl) / 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(var(--accent-hsl) / 0.35), 0 0 10px rgba(var(--accent-hsl) / 0.15);
+    border-color: rgba(var(--accent-hsl) / 0.4);
+  }
+}
+
+.pulse-neon-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+

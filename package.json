@@ -1,0 +1,72 @@
+{
+  "name": "offline-media-hub",
+  "version": "1.0.0",
+  "description": "Offline-first desktop music and video player",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "node dev.js",
+    "vite": "node node_modules/vite/bin/vite.js",
+    "electron:dev": "node node_modules/wait-on/bin/wait-on http://localhost:5173 && node node_modules/electron/cli.js .",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "build:vite": "node node_modules/vite/bin/vite.js build",
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "package": "npm run build && node node_modules/electron-builder/cli.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "electron-updater": "^6.8.9",
+    "framer-motion": "^11.3.2",
+    "lucide-react": "^0.412.0",
+    "mongoose": "^8.5.1",
+    "music-metadata": "^10.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-router-dom": "^6.25.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "electron": "^31.7.7",
+    "electron-builder": "^26.15.3",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6",
+    "vite": "^5.3.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.offlinemediahub.app",
+    "productName": "Offline Media Hub",
+    "publish": {
+      "provider": "github",
+      "owner": "Sicky9304",
+      "repo": "offline-music-player"
+    },
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "assets/**/*",
+      ".env"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Offline Media Hub"
+    }
+  }
+}
