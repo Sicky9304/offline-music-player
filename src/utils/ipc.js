@@ -20,6 +20,14 @@ const e = window.electron || {
         return [];
       case 'mpv:isInstalled':
         return false;
+      case 'updater:getStatus':
+        return { status: 'idle', version: '2.0.3-mock' };
+      case 'updater:check':
+      case 'updater:install':
+      case 'updater:openLog':
+        return { ok: true };
+      case 'app:getVersion':
+        return '2.0.3-mock';
       default:
         return null;
     }
@@ -124,6 +132,15 @@ export const ipc = {
     getVol:      ()                  => e.invoke('mpv:getVol'),
     isPaused:    ()                  => e.invoke('mpv:isPaused'),
     isInstalled: ()                  => e.invoke('mpv:isInstalled'),
+  },
+
+  // Updater
+  updater: {
+    check:      () => e.invoke('updater:check'),
+    install:    () => e.invoke('updater:install'),
+    status:     () => e.invoke('updater:getStatus'),
+    openLog:    () => e.invoke('updater:openLog'),
+    getVersion: () => e.invoke('app:getVersion'),
   },
 
   // Event listeners

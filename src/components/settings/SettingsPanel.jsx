@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-    Volume2, Palette, Music4, Database, Trash2, Sliders, DownloadCloud, FolderOpen
+    Volume2, Palette, Music4, Database, Trash2, Sliders, DownloadCloud, FolderOpen,
+    Cpu, RefreshCw, FileText, CheckCircle, AlertTriangle
 } from "lucide-react";
 import { useSettings } from "../../hooks/useSettings";
 import { useLibrary } from "../../hooks/useLibrary";
@@ -9,6 +11,7 @@ import { useToast } from "../ui/Toast.jsx";
 import PremiumToggle from "../ui/PremiumToggle.jsx";
 import PremiumSlider from "../ui/PremiumSlider.jsx";
 import GlassButton from "../ui/GlassButton.jsx";
+import { ipc } from "../../utils/ipc.js";
 
 function Card({ title, icon: Icon, children }) {
     return (
@@ -43,6 +46,37 @@ export default function SettingsPanel({ search = "" }) {
     const toast = useToast();
 
     const { activePresetId, presets, setEqPreset, importEqPreset } = usePlayer();
+
+    const [updaterState, setUpdaterState] = useState({ status: "idle", percent: 0, version: "", error: null });
+
+    useEffect(() => {
+        let isMounted = true;
+
+        // Fetch initial status
+        const getStatus = async () => {
+            try {
+                const res = await ipc.updater.status();
+                if (res && isMounted) {
+                    setUpdaterState(res);
+                }
+            } catch (e) {
+                console.error("Failed to get initial updater status:", e);
+            }
+        };
+        getStatus();
+
+        // Listen for updates
+        const unsubscribe = ipc.on("updater:status", (state) => {
+            if (isMounted) {
+                setUpdaterState(state);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
+    }, []);
 
     const q = search.toLowerCase().trim();
 
@@ -79,7 +113,12 @@ export default function SettingsPanel({ search = "" }) {
     const showOnlinePresets = matches("Online Preset Library", "Download advanced custom sound models from the cloud catalog");
     const showEqualizerCard = showActivePreset || showImportPreset || showOnlinePresets;
 
-    const hasResults = showPlaybackCard || showAppearanceCard || showAudioCard || showDatabaseCard || showEqualizerCard;
+    // Updates Card
+    const showVersion = matches("App Version", "Check for updates and logs");
+    const showCheckUpdates = matches("Check for Updates", "Manually scan for new releases");
+    const showUpdatesCard = showVersion || showCheckUpdates || matches("Updates", "auto update") || matches("System", "");
+
+    const hasResults = showPlaybackCard || showAppearanceCard || showAudioCard || showDatabaseCard || showEqualizerCard || showUpdatesCard;
 
     if (!hasResults) {
         return (
@@ -331,6 +370,134 @@ export default function SettingsPanel({ search = "" }) {
                             </div>
                         </div>
                     )}
+                </Card>
+            )}
+
+            {showUpdatesCard && (
+                <Card title="Updates & System" icon={Cpu}>
+                    <div className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-semibold text-white">Current Version</h3>
+                                <p className="text-sm text-zinc-400">You are running version {updaterState.version ? `v${updaterState.version}` : 'checking...'}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {updaterState.status === 'idle' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                        <CheckCircle size={12} />
+                                        Up to date
+                                    </span>
+                                )}
+                                {updaterState.status === 'checking' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-400 border border-cyan-500/20 animate-pulse">
+                                        <RefreshCw size={12} className="animate-spin" />
+                                        Checking...
+                                    </span>
+                                )}
+                                {updaterState.status === 'available' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 border border-amber-500/20 animate-pulse">
+                                        Update available
+                                    </span>
+                                )}
+                                {updaterState.status === 'downloading' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400 border border-violet-500/20 animate-pulse">
+                                        Downloading...
+                                    </span>
+                                )}
+                                {updaterState.status === 'downloaded' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+                                        Ready to install
+                                    </span>
+                                )}
+                                {updaterState.status === 'error' && (
+                                    <span className="flex items-center gap-1.5 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-400 border border-rose-500/20">
+                                        <AlertTriangle size={12} />
+                                        Update error
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {updaterState.status === 'downloading' && (
+                            <div className="mt-2 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-medium text-zinc-400">
+                                    <span>Downloading new version...</span>
+                                    <span>{updaterState.percent}%</span>
+                                </div>
+                                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-cyan-500 to-violet-600 transition-all duration-300"
+                                        style={{ width: `${updaterState.percent}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {updaterState.status === 'error' && updaterState.error && (
+                            <p className="mt-2 text-xs text-rose-400 bg-rose-500/5 border border-rose-500/10 rounded-xl p-3">
+                                {updaterState.error}
+                            </p>
+                        )}
+
+                        {updaterState.status === 'available' && updaterState.updateInfo && (
+                            <div className="mt-2 text-xs text-zinc-400 bg-white/[0.01] border border-white/5 rounded-xl p-3">
+                                <p className="font-bold text-white mb-1">Release notes for {updaterState.updateInfo.version}:</p>
+                                <p className="whitespace-pre-line">{updaterState.updateInfo.releaseNotes || 'No release notes provided.'}</p>
+                            </div>
+                        )}
+
+                        <div className="mt-4 flex flex-col sm:flex-row gap-3 border-t border-white/5 pt-4 justify-between sm:items-center">
+                            <div className="text-xs text-zinc-500">
+                                Automatic background updates enabled
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <GlassButton
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={async () => {
+                                        const res = await ipc.updater.openLog();
+                                        if (res && !res.ok) {
+                                            toast.error(res.error || "Logs file not found");
+                                        }
+                                    }}
+                                    leftIcon={<FileText size={16} />}
+                                >
+                                    View Logs
+                                </GlassButton>
+
+                                {updaterState.status === 'downloaded' ? (
+                                    <GlassButton
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={async () => {
+                                            toast.info("Restarting app to install update...");
+                                            await ipc.updater.install();
+                                        }}
+                                        leftIcon={<RefreshCw size={16} />}
+                                        className="bg-gradient-to-r from-emerald-500 to-teal-600 border-none text-white hover:shadow-lg hover:shadow-emerald-500/20"
+                                    >
+                                        Restart & Install
+                                    </GlassButton>
+                                ) : (
+                                    <GlassButton
+                                        variant="primary"
+                                        size="sm"
+                                        disabled={updaterState.status === 'checking' || updaterState.status === 'downloading'}
+                                        onClick={async () => {
+                                            toast.info("Checking for updates...");
+                                            const res = await ipc.updater.check();
+                                            if (res && res.simulated) {
+                                                toast.success("Simulation started!");
+                                            }
+                                        }}
+                                        leftIcon={<RefreshCw size={16} />}
+                                    >
+                                        Check for Updates
+                                    </GlassButton>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </Card>
             )}
 
