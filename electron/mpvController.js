@@ -2,9 +2,24 @@ import { spawn } from 'child_process';
 import { platform } from 'os';
 import path from 'path';
 import net from 'net';
+import fs from 'fs';
 
 const IS_WIN = platform() === 'win32';
 const SOCKET_PATH = IS_WIN ? '\\\\.\\pipe\\mpvsocket' : '/tmp/mpvsocket';
+
+function getMpvPath() {
+  if (IS_WIN) {
+    const commonPaths = [
+      'C:\\Program Files\\MPV Player\\mpv.exe',
+      'C:\\Program Files (x86)\\MPV Player\\mpv.exe',
+      path.join(process.env.LOCALAPPDATA || '', 'Programs\\mpv\\mpv.exe')
+    ];
+    for (const p of commonPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return 'mpv';
+}
 
 export class MpvController {
   constructor() {
@@ -45,7 +60,8 @@ export class MpvController {
     this.isReady = false;
 
     return new Promise((resolve, reject) => {
-      this.mpvProcess = spawn('mpv', args, { detached: false });
+      const mpvBinary = getMpvPath();
+      this.mpvProcess = spawn(mpvBinary, args, { detached: false });
 
       this.mpvProcess.on('error', (err) => {
         console.error('[MPV] Spawn error:', err.message);
@@ -225,7 +241,8 @@ export class MpvController {
 
   isInstalled() {
     return new Promise((resolve) => {
-      const proc = spawn('mpv', ['--version'], { stdio: 'ignore' });
+      const mpvBinary = getMpvPath();
+      const proc = spawn(mpvBinary, ['--version'], { stdio: 'ignore' });
       proc.on('error', () => resolve(false));
       proc.on('close', (code) => resolve(code === 0));
     });

@@ -18,6 +18,8 @@ const MENU_ITEMS = [
 ];
 
 const COLLECTIONS_ITEMS = [
+  { to: '/music',     icon: Music,     label: 'Music' },
+  { to: '/videos',    icon: Video,     label: 'Videos' },
   { to: '/playlists', icon: ListMusic, label: 'My Play List' },
   { to: '/favorites', icon: Heart,     label: 'Favorites' },
   { to: '/history',   icon: History,   label: 'History' }
