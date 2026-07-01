@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
 import './env.js';
-import { connectDatabase, disconnectDatabase, migrateThumbnails, migrateProfileAvatars } from './database.js';
+import { connectDatabase, disconnectDatabase, migrateThumbnails, migrateProfileAvatars, setMainWindow, getDatabaseStatus } from './database.js';
 import { setupLocalApi } from './localApi.js';
 import { MpvController } from './mpvController.js';
 
@@ -134,6 +134,7 @@ function startDevSimulation() {
 }
 
 let mainWindow;
+let reconnectInterval = null;
 const mpv = new MpvController();
 
 async function createWindow() {
@@ -163,9 +164,20 @@ async function createWindow() {
     },
   });
 
+  setMainWindow(mainWindow);
+
   // ─── Setup all IPC handlers ───────────────────────────────────────────────
   mpv.init();
   setupLocalApi(ipcMain, mpv, mainWindow);
+
+  ipcMain.on('win:reload', () => {
+    console.log('[Main] Reloading window...');
+    if (isDev) {
+      mainWindow?.loadURL('http://localhost:5173');
+    } else {
+      mainWindow?.loadFile(path.join(__dirname, '../dist/index.html'));
+    }
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -183,6 +195,31 @@ async function createWindow() {
 
   // ─── DB Status IPC ────────────────────────────────────────────────────────
   ipcMain.handle('db:status',       () => dbResult);
+
+  ipcMain.handle('db:reconnect', async () => {
+    const status = getDatabaseStatus();
+    if (status.connected) {
+      return { connected: true, ok: true };
+    }
+    console.log('[DB Reconnector] Instant reconnect triggered from IPC...');
+    const result = await connectDatabase();
+    if (result.connected && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('db:status', result);
+    }
+    return result;
+  });
+
+  // Try to reconnect in the background every 15 seconds if disconnected
+  reconnectInterval = setInterval(async () => {
+    const status = getDatabaseStatus();
+    if (!status.connected) {
+      console.log('[DB Reconnector] Background reconnecting...');
+      const result = await connectDatabase();
+      if (result.connected && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('db:status', result);
+      }
+    }
+  }, 15000);
 
   // ─── Updater IPC Handlers ──────────────────────────────────────────────────
   ipcMain.handle('updater:getStatus', () => {
@@ -225,12 +262,25 @@ async function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  if (!isDev) {
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-});
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    if (!isDev) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
+  });
+}
 
 let isQuitting = false;
 
@@ -238,6 +288,7 @@ app.on('before-quit', async (event) => {
   if (!isQuitting) {
     event.preventDefault();
     console.log('[Main] App is quitting. Cleaning up...');
+    if (reconnectInterval) clearInterval(reconnectInterval);
     try { await mpv.stop(); } catch (_) {}
     await disconnectDatabase();
     isQuitting = true;

@@ -73,7 +73,7 @@ export default function App() {
             className="flex items-center justify-center gap-2 text-xs py-1.5 px-4 font-medium glass-surface z-50"
             style={{ color: '#fbbf24' }}
           >
-            ⚠️ MongoDB not connected — data will not be saved
+            ⚠️ Offline Mode — Changes will sync when online
           </motion.div>
         )}
       </AnimatePresence>

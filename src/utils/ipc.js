@@ -6,6 +6,7 @@ const e = window.electron || {
     // Provide sensible startup defaults to avoid component crashes
     switch (channel) {
       case 'db:status':
+      case 'db:reconnect':
         return { connected: false, error: 'Running outside Electron' };
       case 'settings:getAll':
         return {};
@@ -50,6 +51,7 @@ export const ipc = {
   maximize:     ()     => e.send('win:maximize'),
   close:        ()     => e.send('win:close'),
   isMaximized:  ()     => e.invoke('win:isMaximized'),
+  reload:       ()     => e.send('win:reload'),
 
   video: {
     open: (filePath) => e.invoke('video:open', filePath),
@@ -57,6 +59,7 @@ export const ipc = {
 
   // DB status
   dbStatus:     ()     => e.invoke('db:status'),
+  reconnectDb:  ()     => e.invoke('db:reconnect'),
 
   // Dialog
   openFiles:    ()     => e.invoke('dialog:openFiles'),

@@ -15,9 +15,26 @@ export function LibraryProvider({ children }) {
   useEffect(() => {
     loadAll();
     // Listen for DB status
-    const unsub = ipc.on('db:status', (status) => setDbStatus(status));
+    const unsubStatus = ipc.on('db:status', (status) => {
+      setDbStatus(status);
+      loadAll();
+    });
+    // Listen for DB synced event
+    const unsubSynced = ipc.on('db:synced', () => {
+      loadAll();
+    });
+    // Try to reconnect database immediately when internet goes online
+    const handleOnline = () => {
+      ipc.reconnectDb().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+
     ipc.dbStatus().then(s => s && setDbStatus(s)).catch(() => {});
-    return unsub;
+    return () => {
+      unsubStatus();
+      unsubSynced();
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   async function loadAll() {

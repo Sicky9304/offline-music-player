@@ -12,11 +12,6 @@ import { uploadProfileImage, isOnline } from './cloudinaryProfile.js';
 
 async function safeDbQuery(queryFn, fallbackValue = null) {
   try {
-    const status = getDatabaseStatus();
-    if (!status.connected) {
-      console.warn('[DB] Attempted database query while disconnected.');
-      return fallbackValue;
-    }
     return await queryFn();
   } catch (err) {
     console.error('[DB] Query failed:', err.message);

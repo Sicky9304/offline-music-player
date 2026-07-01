@@ -1,5 +1,5 @@
 import { ipc } from '../../utils/ipc';
-import { Minus, X, Maximize2, AudioLines } from 'lucide-react';
+import { Minus, X, Maximize2, AudioLines, RotateCw } from 'lucide-react';
 
 export default function TitleBar() {
   return (
@@ -23,6 +23,15 @@ export default function TitleBar() {
         className="flex items-center gap-1.5"
         style={{ WebkitAppRegion: 'no-drag' }}
       >
+        <button
+          id="win-reload"
+          onClick={() => ipc.reload()}
+          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-white/5 active:scale-95 glass-button"
+          style={{ color: 'var(--text-secondary)' }}
+          title="Reload Player"
+        >
+          <RotateCw size={12} />
+        </button>
         <button
           id="win-minimize"
           onClick={() => ipc.minimize()}
