@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { config as loadEnv } from 'dotenv';
