@@ -11,7 +11,7 @@
     "build": "node node_modules/vite/bin/vite.js build",
     "build:vite": "node node_modules/vite/bin/vite.js build",
     "preview": "node node_modules/vite/bin/vite.js preview",
-    "package": "node -e \"const fs = require('fs'); const path = require('path'); const dir = 'dist-electron'; if (fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => { if (f.endsWith('.exe') || f.endsWith('.blockmap') || f === 'latest.yml') fs.unlinkSync(path.join(dir, f)); })} \" && npm run build && node -r dotenv/config node_modules/electron-builder/cli.js"
+    "package": "node -e \"const fs = require('fs'); const path = require('path'); const dir = 'dist-electron'; if (fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => { if (f.endsWith('.exe') || f.endsWith('.blockmap') || f === 'latest.yml') fs.unlinkSync(path.join(dir, f)); })} \" && npm run build && node -r dotenv/config node_modules/electron-builder/cli.js --publish always"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
