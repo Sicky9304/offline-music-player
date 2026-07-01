@@ -140,13 +140,27 @@ export class MpvController {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
       const msg = JSON.stringify({ command: [command, ...args], request_id: id }) + '\n';
-      this.socket.write(msg);
-      setTimeout(() => {
+      
+      const timeoutId = setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           reject(new Error('MPV command timeout'));
         }
       }, 5000);
+
+      try {
+        this.socket.write(msg, (err) => {
+          if (err) {
+            clearTimeout(timeoutId);
+            this.pendingRequests.delete(id);
+            reject(err);
+          }
+        });
+      } catch (err) {
+        clearTimeout(timeoutId);
+        this.pendingRequests.delete(id);
+        reject(err);
+      }
     });
   }
 

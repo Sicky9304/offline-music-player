@@ -37,6 +37,17 @@ function logToFile(level, ...args) {
   console.log(`[Updater:${level}]`, message);
 }
 
+// ─── Process Error Handling ──────────────────────────────────────────────────
+process.on('uncaughtException', (error) => {
+  console.error('[Main] Uncaught Exception:', error);
+  logToFile('FATAL', 'Uncaught Exception:', error?.stack || error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Main] Unhandled Rejection at:', promise, 'reason:', reason);
+  logToFile('FATAL', 'Unhandled Rejection:', reason?.stack || reason);
+});
+
 autoUpdater.logger = {
   info: (...args) => logToFile('INFO', ...args),
   warn: (...args) => logToFile('WARN', ...args),

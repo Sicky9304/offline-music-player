@@ -6,9 +6,23 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import { Media, Playlist, History, Settings, Profile, getSetting, setSetting, getAllSettings } from './database.js';
+import { Media, Playlist, History, Settings, Profile, getSetting, setSetting, getAllSettings, getDatabaseStatus } from './database.js';
 import { scanFolder, readMetadata, findSubtitlesNear } from './mediaScanner.js';
 import { uploadProfileImage, isOnline } from './cloudinaryProfile.js';
+
+async function safeDbQuery(queryFn, fallbackValue = null) {
+  try {
+    const status = getDatabaseStatus();
+    if (!status.connected) {
+      console.warn('[DB] Attempted database query while disconnected.');
+      return fallbackValue;
+    }
+    return await queryFn();
+  } catch (err) {
+    console.error('[DB] Query failed:', err.message);
+    return fallbackValue;
+  }
+}
 
 export function setupLocalApi(ipcMain, mpv, mainWindow) {
 
@@ -99,68 +113,86 @@ export function setupLocalApi(ipcMain, mpv, mainWindow) {
 
   // ─── Media CRUD ───────────────────────────────────────────────────────────
   ipcMain.handle('media:addMany', async (_, items) => {
-    const results = [];
-    for (const item of items) {
-      try {
-        const doc = await Media.findOneAndUpdate(
-          { filePath: item.filePath },
-          { ...item, id: item.id || uuidv4() },
-          { upsert: true, new: true }
-        );
-        results.push(doc.toObject());
-      } catch (e) {
-        console.error('[media:addMany]', e.message);
+    return safeDbQuery(async () => {
+      const results = [];
+      for (const item of items) {
+        try {
+          const doc = await Media.findOneAndUpdate(
+            { filePath: item.filePath },
+            { ...item, id: item.id || uuidv4() },
+            { upsert: true, new: true }
+          );
+          results.push(doc.toObject());
+        } catch (e) {
+          console.error('[media:addMany]', e.message);
+        }
       }
-    }
-    return results;
+      return results;
+    }, []);
   });
 
   ipcMain.handle('media:getAll', async () => {
-    const docs = await Media.find({}).sort({ dateAdded: -1 });
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await Media.find({}).sort({ dateAdded: -1 });
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('media:getAudio', async () => {
-    const docs = await Media.find({ type: 'audio' }).sort({ title: 1 });
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await Media.find({ type: 'audio' }).sort({ title: 1 });
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('media:getVideo', async () => {
-    const docs = await Media.find({ type: 'video' }).sort({ title: 1 });
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await Media.find({ type: 'video' }).sort({ title: 1 });
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('media:delete', async (_, id) => {
-    await Media.deleteOne({ id });
-    return { ok: true };
+    return safeDbQuery(async () => {
+      await Media.deleteOne({ id });
+      return { ok: true };
+    }, { ok: false });
   });
 
   ipcMain.handle('media:update', async (_, { id, updates }) => {
-    const doc = await Media.findOneAndUpdate({ id }, updates, { new: true });
-    return doc?.toObject() || null;
+    return safeDbQuery(async () => {
+      const doc = await Media.findOneAndUpdate({ id }, updates, { new: true });
+      return doc?.toObject() || null;
+    }, null);
   });
 
   ipcMain.handle('media:toggleFavorite', async (_, id) => {
-    const doc = await Media.findOne({ id });
-    if (!doc) return null;
-    doc.favorite = !doc.favorite;
-    await doc.save();
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      const doc = await Media.findOne({ id });
+      if (!doc) return null;
+      doc.favorite = !doc.favorite;
+      await doc.save();
+      return doc.toObject();
+    }, null);
   });
 
   ipcMain.handle('media:getFavorites', async () => {
-    const docs = await Media.find({ favorite: true }).sort({ title: 1 });
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await Media.find({ favorite: true }).sort({ title: 1 });
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('media:search', async (_, query) => {
     const q = query.trim();
     if (!q) return [];
-    const regex = new RegExp(q, 'i');
-    const docs = await Media.find({
-      $or: [{ title: regex }, { artist: regex }, { album: regex }, { fileName: regex }],
-    }).limit(50);
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const regex = new RegExp(q, 'i');
+      const docs = await Media.find({
+        $or: [{ title: regex }, { artist: regex }, { album: regex }, { fileName: regex }],
+      }).limit(50);
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('media:getMetadata', async (_, filePath) => {
@@ -173,101 +205,126 @@ export function setupLocalApi(ipcMain, mpv, mainWindow) {
 
   // ─── Playlists ────────────────────────────────────────────────────────────
   ipcMain.handle('playlist:getAll', async () => {
-    const docs = await Playlist.find({}).sort({ createdAt: -1 });
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await Playlist.find({}).sort({ createdAt: -1 });
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('playlist:create', async (_, { name, description }) => {
-    const doc = await Playlist.create({ id: uuidv4(), name, description: description || '' });
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      const doc = await Playlist.create({ id: uuidv4(), name, description: description || '' });
+      return doc.toObject();
+    }, null);
   });
 
   ipcMain.handle('playlist:update', async (_, { id, updates }) => {
-    const doc = await Playlist.findOneAndUpdate({ id }, { ...updates, updatedAt: new Date() }, { new: true });
-    return doc?.toObject() || null;
+    return safeDbQuery(async () => {
+      const doc = await Playlist.findOneAndUpdate({ id }, { ...updates, updatedAt: new Date() }, { new: true });
+      return doc?.toObject() || null;
+    }, null);
   });
 
   ipcMain.handle('playlist:delete', async (_, id) => {
-    await Playlist.deleteOne({ id });
-    return { ok: true };
+    return safeDbQuery(async () => {
+      await Playlist.deleteOne({ id });
+      return { ok: true };
+    }, { ok: false });
   });
 
   ipcMain.handle('playlist:addMedia', async (_, { playlistId, mediaId }) => {
-    const doc = await Playlist.findOne({ id: playlistId });
-    if (!doc) return null;
-    if (!doc.mediaIds.includes(mediaId)) {
-      doc.mediaIds.push(mediaId);
-      await doc.save();
-    }
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      const doc = await Playlist.findOne({ id: playlistId });
+      if (!doc) return null;
+      if (!doc.mediaIds.includes(mediaId)) {
+        doc.mediaIds.push(mediaId);
+        await doc.save();
+      }
+      return doc.toObject();
+    }, null);
   });
 
   ipcMain.handle('playlist:removeMedia', async (_, { playlistId, mediaId }) => {
-    const doc = await Playlist.findOne({ id: playlistId });
-    if (!doc) return null;
-    doc.mediaIds = doc.mediaIds.filter(id => id !== mediaId);
-    await doc.save();
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      const doc = await Playlist.findOne({ id: playlistId });
+      if (!doc) return null;
+      doc.mediaIds = doc.mediaIds.filter(id => id !== mediaId);
+      await doc.save();
+      return doc.toObject();
+    }, null);
   });
 
   // ─── History ──────────────────────────────────────────────────────────────
   ipcMain.handle('history:add', async (_, item) => {
-    try {
+    return safeDbQuery(async () => {
       const doc = await History.create({ id: uuidv4(), ...item });
       // Update media playCount and lastPlayed
       if (item.mediaId) {
         await Media.updateOne({ id: item.mediaId }, { $inc: { playCount: 1 }, lastPlayed: new Date() });
       }
       return doc.toObject();
-    } catch (e) {
-      console.error('[history:add]', e.message);
-      return null;
-    }
+    }, null);
   });
 
   ipcMain.handle('history:getAll', async () => {
-    const docs = await History.find({}).sort({ playedAt: -1 }).limit(500);
-    return docs.map(d => d.toObject());
+    return safeDbQuery(async () => {
+      const docs = await History.find({}).sort({ playedAt: -1 }).limit(500);
+      return docs.map(d => d.toObject());
+    }, []);
   });
 
   ipcMain.handle('history:clear', async () => {
-    await History.deleteMany({});
-    return { ok: true };
+    return safeDbQuery(async () => {
+      await History.deleteMany({});
+      return { ok: true };
+    }, { ok: false });
   });
 
   ipcMain.handle('history:delete', async (_, id) => {
-    await History.deleteOne({ id });
-    return { ok: true };
+    return safeDbQuery(async () => {
+      await History.deleteOne({ id });
+      return { ok: true };
+    }, { ok: false });
   });
 
   // ─── Settings ─────────────────────────────────────────────────────────────
   ipcMain.handle('settings:get', async (_, key) => {
-    return await getSetting(key);
+    return safeDbQuery(async () => {
+      return await getSetting(key);
+    }, null);
   });
 
   ipcMain.handle('settings:set', async (_, { key, value }) => {
-    await setSetting(key, value);
-    return { ok: true };
+    return safeDbQuery(async () => {
+      await setSetting(key, value);
+      return { ok: true };
+    }, { ok: false });
   });
 
   ipcMain.handle('settings:getAll', async () => {
-    return await getAllSettings();
+    return safeDbQuery(async () => {
+      return await getAllSettings();
+    }, {});
   });
 
   // ─── Profile ──────────────────────────────────────────────────────────────
   ipcMain.handle('profile:get', async () => {
-    let doc = await Profile.findOne({ uid: 'default' });
-    if (!doc) doc = await Profile.create({ uid: 'default', name: 'User' });
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      let doc = await Profile.findOne({ uid: 'default' });
+      if (!doc) doc = await Profile.create({ uid: 'default', name: 'User' });
+      return doc.toObject();
+    }, { uid: 'default', name: 'User' });
   });
 
   ipcMain.handle('profile:update', async (_, updates) => {
-    const doc = await Profile.findOneAndUpdate(
-      { uid: 'default' },
-      { ...updates, updatedAt: new Date() },
-      { upsert: true, new: true }
-    );
-    return doc.toObject();
+    return safeDbQuery(async () => {
+      const doc = await Profile.findOneAndUpdate(
+        { uid: 'default' },
+        { ...updates, updatedAt: new Date() },
+        { upsert: true, new: true }
+      );
+      return doc.toObject();
+    }, null);
   });
 
   ipcMain.handle('profile:uploadAvatar', async () => {
@@ -299,12 +356,14 @@ export function setupLocalApi(ipcMain, mpv, mainWindow) {
       }
     }
 
-    const doc = await Profile.findOneAndUpdate(
-      { uid: 'default' },
-      { avatar: b64, avatarCloudinaryUrl: cloudUrl },
-      { upsert: true, new: true }
-    );
-    return { ok: true, avatar: b64, cloudUrl };
+    return safeDbQuery(async () => {
+      const doc = await Profile.findOneAndUpdate(
+        { uid: 'default' },
+        { avatar: b64, avatarCloudinaryUrl: cloudUrl },
+        { upsert: true, new: true }
+      );
+      return { ok: true, avatar: b64, cloudUrl };
+    }, { ok: false, error: 'Database disconnected' });
   });
 
   // ─── MPV Playback ─────────────────────────────────────────────────────────
