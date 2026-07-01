@@ -4,26 +4,29 @@ import { useState, useEffect } from 'react';
 import {
   Library, Video, Music, ListMusic, Heart, History,
   Settings, Palette, User, ChevronLeft, ChevronRight,
-  Database, Wifi, WifiOff,
+  Database, Wifi, WifiOff, Home as HomeIcon, Search, Compass, LogOut
 } from 'lucide-react';
 import { useLibrary } from '../hooks/useLibrary.jsx';
 import EqualizerBars from './EqualizerBars.jsx';
 import { usePlayer } from '../hooks/usePlayer.jsx';
 import ThreeDArtwork from './ThreeDArtwork.jsx';
 
-const NAV_ITEMS = [
-  { to: '/library',   icon: Library,   label: 'Library'   },
-  { to: '/videos',    icon: Video,     label: 'Videos'    },
-  { to: '/music',     icon: Music,     label: 'Music'     },
-  { to: '/playlists', icon: ListMusic, label: 'Playlists' },
-  { to: '/favorites', icon: Heart,     label: 'Favorites' },
-  { to: '/history',   icon: History,   label: 'History'   },
+const MENU_ITEMS = [
+  { to: '/home',      icon: HomeIcon, label: 'Home' },
+  { to: '/library',   icon: Compass,  label: 'Discover' },
+  { to: '/music',     icon: Search,   label: 'Search' }
 ];
 
-const SETTINGS_ITEMS = [
-  { to: '/themes',   icon: Palette,  label: 'Themes'   },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-  { to: '/profile',  icon: User,     label: 'Profile'  },
+const COLLECTIONS_ITEMS = [
+  { to: '/playlists', icon: ListMusic, label: 'My Play List' },
+  { to: '/favorites', icon: Heart,     label: 'Favorites' },
+  { to: '/history',   icon: History,   label: 'History' }
+];
+
+const GENERAL_ITEMS = [
+  { to: '/themes',    icon: Palette,  label: 'Themes' },
+  { to: '/settings',  icon: Settings, label: 'Setting' },
+  { to: '/profile',   icon: User,     label: 'Profile' }
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
@@ -93,16 +96,36 @@ export default function Sidebar({ collapsed, onToggle }) {
       )}
 
       {/* Nav items */}
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <SidebarItem key={to} to={to} icon={Icon} label={label} collapsed={collapsed} />
-        ))}
+      <nav className="flex-1 px-3 space-y-4 overflow-y-auto mt-2">
+        {/* MENUE group */}
+        <div>
+          {!collapsed && <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase px-3 mb-1.5">Menue</p>}
+          <div className="space-y-0.5">
+            {MENU_ITEMS.map(({ to, icon: Icon, label }) => (
+              <SidebarItem key={to} to={to} icon={Icon} label={label} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
 
-        <div className="my-3 border-t" style={{ borderColor: 'var(--border)' }} />
+        {/* COLLECTIONS group */}
+        <div>
+          {!collapsed && <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase px-3 mb-1.5">Collections</p>}
+          <div className="space-y-0.5">
+            {COLLECTIONS_ITEMS.map(({ to, icon: Icon, label }) => (
+              <SidebarItem key={to} to={to} icon={Icon} label={label} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
 
-        {SETTINGS_ITEMS.map(({ to, icon: Icon, label }) => (
-          <SidebarItem key={to} to={to} icon={Icon} label={label} collapsed={collapsed} />
-        ))}
+        {/* GENERAL group */}
+        <div>
+          {!collapsed && <p className="text-[10px] font-black tracking-widest text-zinc-500 uppercase px-3 mb-1.5">General</p>}
+          <div className="space-y-0.5">
+            {GENERAL_ITEMS.map(({ to, icon: Icon, label }) => (
+              <SidebarItem key={to} to={to} icon={Icon} label={label} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
       </nav>
 
       {/* DB Status footer */}

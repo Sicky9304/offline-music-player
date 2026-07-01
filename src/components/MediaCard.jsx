@@ -66,11 +66,12 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
     return (
       <motion.div
         layout
+        transition={{ type: 'spring', stiffness: 40, damping: 15, mass: 1.1 }}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
         onClick={handlePlay}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer group transition-all ${isActive ? 'ring-1' : ''}`}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer group ${isActive ? 'ring-1' : ''}`}
         style={{ ringColor: isActive ? 'var(--accent)' : 'transparent', background: isActive ? 'rgba(255,255,255,0.06)' : '' }}
       >
         {/* Thumbnail */}
@@ -112,6 +113,7 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
   return (
     <motion.div
       layout
+      transition={{ type: 'spring', stiffness: 40, damping: 15, mass: 1.1 }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ scale: 1.02 }}
@@ -126,7 +128,7 @@ export default function MediaCard({ media, queue, index = 0, onAddToPlaylist, co
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`relative group rounded-2xl overflow-hidden cursor-pointer border transition-all duration-75 ${isActive ? 'ring-2' : ''}`}
+      className={`relative group rounded-2xl overflow-hidden cursor-pointer border ${isActive ? 'ring-2' : ''}`}
       onClick={handlePlay}
     >
       {/* Art */}

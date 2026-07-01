@@ -673,8 +673,17 @@ export default function NowPlaying() {
                 style={{ borderColor: 'rgba(255,255,255,0.08)' }}
               >
                 <div className="flex items-center justify-between px-4 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                  <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Queue</h2>
-                  <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>{queue.length} tracks</span>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Queue</h2>
+                    <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>({queue.length} tracks)</span>
+                  </div>
+                  <button
+                    id="np-queue-close"
+                    onClick={() => setShowQueue(false)}
+                    className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <X size={15} />
+                  </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-1">
                   {queue.map((m, i) => (

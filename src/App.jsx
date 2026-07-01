@@ -9,6 +9,7 @@ import NowPlaying    from './components/NowPlaying.jsx';
 import ToastContainer from './components/Toast.jsx';
 import DropZone      from './components/DropZone.jsx';
 
+import Home      from './pages/Home.jsx';
 import Library   from './pages/Library.jsx';
 import Videos    from './pages/Videos.jsx';
 import Music     from './pages/Music.jsx';
@@ -55,7 +56,8 @@ export default function App() {
         <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--bg-primary)' }}>
           <div className="flex-1 overflow-y-auto">
             <Routes>
-              <Route path="/"          element={<Navigate to="/library" replace />} />
+              <Route path="/"          element={<Navigate to="/home" replace />} />
+              <Route path="/home"      element={<Home />} />
               <Route path="/library"   element={<Library />} />
               <Route path="/videos"    element={<Videos />} />
               <Route path="/music"     element={<Music />} />
