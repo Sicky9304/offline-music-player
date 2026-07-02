@@ -138,13 +138,6 @@ let reconnectInterval = null;
 const mpv = new MpvController();
 
 async function createWindow() {
-  // ─── Connect MongoDB ─────────────────────────────────────────────────────
-  const dbResult = await connectDatabase();
-  if (dbResult.ok) {
-    migrateThumbnails();
-    migrateProfileAvatars();
-  }
-
   mainWindow = new BrowserWindow({
     width:           1400,
     height:          900,
@@ -166,6 +159,19 @@ async function createWindow() {
 
   setMainWindow(mainWindow);
 
+  // Connect MongoDB asynchronously so the window opens instantly on startup
+  connectDatabase().then((dbResult) => {
+    if (dbResult.connected) {
+      migrateThumbnails();
+      migrateProfileAvatars();
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('db:status', { connected: dbResult.connected, ok: true });
+    }
+  }).catch((err) => {
+    console.error('[DB Startup] Connection failed asynchronously:', err.message);
+  });
+
   // ─── Setup all IPC handlers ───────────────────────────────────────────────
   mpv.init();
   setupLocalApi(ipcMain, mpv, mainWindow);
@@ -181,7 +187,8 @@ async function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    mainWindow.webContents.send('db:status', dbResult);
+    const status = getDatabaseStatus();
+    mainWindow.webContents.send('db:status', { connected: status.connected, ok: true });
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -194,7 +201,10 @@ async function createWindow() {
   }
 
   // ─── DB Status IPC ────────────────────────────────────────────────────────
-  ipcMain.handle('db:status',       () => dbResult);
+  ipcMain.handle('db:status', () => {
+    const status = getDatabaseStatus();
+    return { connected: status.connected, ok: true };
+  });
 
   ipcMain.handle('db:reconnect', async () => {
     const status = getDatabaseStatus();
@@ -207,6 +217,12 @@ async function createWindow() {
       mainWindow.webContents.send('db:status', result);
     }
     return result;
+  });
+
+  ipcMain.handle('db:disconnect', async () => {
+    console.log('[DB Disconnector] Disconnect triggered from IPC due to offline status...');
+    await disconnectDatabase();
+    return { connected: false, ok: true };
   });
 
   // Try to reconnect in the background every 15 seconds if disconnected

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { ipc } from '../utils/ipc.js';
+import { useToast } from '../components/ui/Toast.jsx';
 
 const LibraryContext = createContext(null);
 
@@ -10,13 +11,26 @@ export function LibraryProvider({ children }) {
   const [history,   setHistory]   = useState([]);
   const [loading,   setLoading]   = useState(false);
   const [dbStatus,  setDbStatus]  = useState({ connected: false });
+  const isFirstLoadRef = useRef(true);
+  const toast = useToast();
 
   // Initial load
   useEffect(() => {
     loadAll();
     // Listen for DB status
     const unsubStatus = ipc.on('db:status', (status) => {
-      setDbStatus(status);
+      setDbStatus(prev => {
+        if (isFirstLoadRef.current) {
+          isFirstLoadRef.current = false;
+        } else {
+          if (!prev.connected && status.connected) {
+            toast.success("Database is now online. Synced with cloud!");
+          } else if (prev.connected && !status.connected) {
+            toast.warning("Lost connection to database. Operating in local offline mode.");
+          }
+        }
+        return status;
+      });
       loadAll();
     });
     // Listen for DB synced event
@@ -29,11 +43,25 @@ export function LibraryProvider({ children }) {
     };
     window.addEventListener('online', handleOnline);
 
-    ipc.dbStatus().then(s => s && setDbStatus(s)).catch(() => {});
+    // Disconnect database immediately when internet goes offline
+    const handleOffline = () => {
+      ipc.disconnectDb().catch(() => {});
+    };
+    window.addEventListener('offline', handleOffline);
+
+    ipc.dbStatus().then(s => {
+      if (s) {
+        setDbStatus(prev => {
+          isFirstLoadRef.current = false;
+          return s;
+        });
+      }
+    }).catch(() => {});
     return () => {
       unsubStatus();
       unsubSynced();
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import './env.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'dns';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -520,11 +521,9 @@ export async function connectDatabase() {
     return { connected: false, ok: true, error: 'Connection already in progress' };
   }
   isConnecting = true;
-  if (mongoose.connection.readyState !== 0) {
-    try {
-      await mongoose.connection.close();
-    } catch (_) {}
-  }
+  try {
+    await mongoose.disconnect();
+  } catch (_) {}
   try {
     await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
     isConnected = true;
@@ -535,10 +534,33 @@ export async function connectDatabase() {
     
     return { connected: true, ok: true };
   } catch (err) {
+    const isDnsError = err.message.includes('ENOTFOUND') || 
+                       err.message.includes('EAI_AGAIN') || 
+                       err.message.includes('ETIMEOUT') ||
+                       err.message.includes('MongooseServerSelectionError') ||
+                       err.name === 'MongooseServerSelectionError';
+
+    if (isDnsError) {
+      console.log('[DB] DNS resolution failed (e.g. ETIMEOUT/ENOTFOUND). Trying public DNS fallback...');
+      try {
+        dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+        console.log('[DB] Configured public DNS resolvers: 8.8.8.8, 1.1.1.1, 8.8.4.4');
+        
+        await mongoose.disconnect();
+        await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+        isConnected = true;
+        console.log('[DB] Connected to MongoDB using public DNS fallback:', MONGODB_URI);
+        syncDatabase().catch(syncErr => console.error('[DB Sync] Background sync error:', syncErr.message));
+        return { connected: true, ok: true };
+      } catch (retryErr) {
+        console.error('[DB] Retry with public DNS fallback failed:', retryErr.message);
+      }
+    }
+
     isConnected = false;
     console.error('[DB] Connection failed:', err.message);
     try {
-      await mongoose.connection.close();
+      await mongoose.disconnect();
     } catch (_) {}
     return { connected: false, ok: true, error: err.message };
   } finally {
@@ -548,9 +570,14 @@ export async function connectDatabase() {
 
 export async function disconnectDatabase() {
   if (!isConnected) return;
-  await mongoose.disconnect();
+  try {
+    await mongoose.disconnect();
+  } catch (_) {}
   isConnected = false;
   console.log('[DB] Disconnected from MongoDB');
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send('db:status', { connected: false, ok: true });
+  }
 }
 
 export function getDatabaseStatus() {

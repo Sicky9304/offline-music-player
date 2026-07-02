@@ -7,6 +7,7 @@ const e = window.electron || {
     switch (channel) {
       case 'db:status':
       case 'db:reconnect':
+      case 'db:disconnect':
         return { connected: false, error: 'Running outside Electron' };
       case 'settings:getAll':
         return {};
@@ -60,6 +61,7 @@ export const ipc = {
   // DB status
   dbStatus:     ()     => e.invoke('db:status'),
   reconnectDb:  ()     => e.invoke('db:reconnect'),
+  disconnectDb: ()     => e.invoke('db:disconnect'),
 
   // Dialog
   openFiles:    ()     => e.invoke('dialog:openFiles'),
