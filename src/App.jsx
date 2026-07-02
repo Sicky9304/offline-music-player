@@ -21,6 +21,8 @@ import Settings    from './pages/Settings.jsx';
 import Themes      from './pages/Themes.jsx';
 import Profile     from './pages/Profile.jsx';
 import VideoPlayer from './pages/VideoPlayer.jsx';
+import OnlineHub   from './pages/OnlineHub.jsx';
+import Downloads   from './pages/Downloads.jsx';
 
 import { usePlayer } from './hooks/usePlayer.jsx';
 import { useLibrary } from './hooks/useLibrary.jsx';
@@ -105,6 +107,8 @@ export default function App() {
               <Route path="/settings"  element={<Settings />} />
               <Route path="/themes"    element={<Themes />} />
               <Route path="/profile"   element={<Profile />} />
+              <Route path="/online-hub" element={<OnlineHub />} />
+              <Route path="/downloads"  element={<Downloads />} />
             </Routes>
           </div>
 

@@ -4,11 +4,13 @@ import {
   ChevronDown, Play, Pause, SkipBack, SkipForward,
   Volume2, VolumeX, Shuffle, Repeat, Repeat1, Heart,
   ListMusic, FastForward, Rewind, Zap, Clock, X, Info, AlignLeft,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, Music, Languages, ChevronDown as ChevDown
 } from 'lucide-react';
 import { usePlayer, REPEAT_NONE, REPEAT_ONE } from '../../hooks/usePlayer.jsx';
 import { useLibrary } from '../../hooks/useLibrary.jsx';
 import { formatDuration, truncate } from '../../utils/formatters.js';
+import { ipc } from '../../utils/ipc.js';
+import { apiCache } from '../../utils/apiCache.js';
 import EqualizerBars from './EqualizerBars.jsx';
 import MediaCard from './MediaCard.jsx';
 import ThreeDArtwork from './ThreeDArtwork.jsx';
@@ -49,9 +51,18 @@ export default function NowPlaying() {
     setIsWideMode(prev => {
       const next = !prev;
       localStorage.setItem('nowplaying-widemode', next.toString());
+      if (next && activeTab === 'artwork') {
+        setActiveTab('lyrics');
+      }
       return next;
     });
   };
+
+  useEffect(() => {
+    if (isWideMode && activeTab === 'artwork') {
+      setActiveTab('lyrics');
+    }
+  }, [isWideMode, activeTab]);
 
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -61,6 +72,16 @@ export default function NowPlaying() {
   const [tiltX, setTiltX] = useState(0);
   const [tiltY, setTiltY] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [lyricsData, setLyricsData] = useState({ plain: null, synced: [] });
+  const [hasLyrics, setHasLyrics] = useState(false);
+  const [lyricsLang, setLyricsLang] = useState('original'); // 'original' or BCP-47 lang code
+  const [translating, setTranslating] = useState(false);
+  const [translatedLines, setTranslatedLines] = useState([]); // translated synced lines
+  const [translatedPlain, setTranslatedPlain] = useState(null);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const lyricsContainerRef = useRef(null);
+  const lyricLinesRef = useRef([]);
 
   useEffect(() => {
     setImgError(false);
@@ -222,6 +243,172 @@ export default function NowPlaying() {
     };
     img.onerror = () => setDominantColor('124, 58, 237');
   }, [currentMedia?.thumbnail]);
+
+  // Load and parse lyrics when active tab is selected or track changes
+  useEffect(() => {
+    if (!currentMedia || !showNowPlaying) return;
+
+    const fetchLyrics = async () => {
+      setLyricsLoading(true);
+      setLyricsData({ plain: null, synced: [] });
+      setHasLyrics(false);
+      try {
+        const cacheKey = `lyrics:${currentMedia.id}`;
+        // Seed from cache to avoid loading flash when re-opening same track
+        const cached = apiCache.peek(cacheKey);
+        if (cached?.ok && (cached.plainLyrics || cached.syncedLyrics)) {
+          const parsed = parseLrc(cached.syncedLyrics);
+          setLyricsData({ plain: cached.plainLyrics, synced: parsed });
+          setHasLyrics(true);
+          setLyricsLoading(false);
+          return;
+        }
+        const res = await apiCache.get(
+          cacheKey,
+          () => ipc.online.getLyrics({
+            artist:   currentMedia.artist,
+            title:    currentMedia.title,
+            duration: currentMedia.duration || 0,
+          }),
+          30
+        );
+        if (res && res.ok && (res.plainLyrics || res.syncedLyrics)) {
+          const parsed = parseLrc(res.syncedLyrics);
+          setLyricsData({ plain: res.plainLyrics, synced: parsed });
+          setHasLyrics(true);
+        }
+      } catch (err) {
+        console.error('[Lyrics] NowPlaying fetch failed:', err);
+      } finally {
+        setLyricsLoading(false);
+      }
+    };
+
+    fetchLyrics();
+  }, [currentMedia?.id, showNowPlaying]);
+
+  const parseLrc = (lrcText) => {
+    if (!lrcText) return [];
+    const lines = lrcText.split('\n');
+    const timeRegex = /\[(\d+):(\d+)(?:\.(\d+))?\]/g;
+    const parsed = [];
+
+    for (const line of lines) {
+      const text = line.replace(timeRegex, '').trim();
+      let match;
+      timeRegex.lastIndex = 0;
+      
+      while ((match = timeRegex.exec(line)) !== null) {
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const ms = match[3] ? parseInt(match[3].padEnd(3, '0').slice(0, 3), 10) : 0;
+        const time = minutes * 60 + seconds + ms / 1000;
+        if (text || parsed.length === 0 || parsed[parsed.length - 1].text !== '') {
+          parsed.push({ time, text });
+        }
+      }
+    }
+    return parsed.sort((a, b) => a.time - b.time);
+  };
+
+  let activeIndex = -1;
+  const isSynced = lyricsData.synced && lyricsData.synced.length > 0;
+  if (isSynced) {
+    for (let i = 0; i < lyricsData.synced.length; i++) {
+      if (currentTime >= lyricsData.synced[i].time) {
+        activeIndex = i;
+      } else {
+        break;
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (isSynced && activeIndex !== -1 && lyricLinesRef.current[activeIndex]) {
+      lyricLinesRef.current[activeIndex].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [activeIndex, isSynced, activeTab]);
+
+  // Reset lang to original when track changes
+  useEffect(() => {
+    setLyricsLang('original');
+    setTranslatedLines([]);
+    setTranslatedPlain(null);
+  }, [currentMedia?.id]);
+
+  // Translate lyrics — cached per trackId+lang so same combo never re-fetches
+  useEffect(() => {
+    if (lyricsLang === 'original' || !hasLyrics) {
+      setTranslatedLines([]);
+      setTranslatedPlain(null);
+      return;
+    }
+
+    const doTranslate = async () => {
+      setTranslating(true);
+      try {
+        if (isSynced && lyricsData.synced.length > 0) {
+          const batchText = lyricsData.synced.map(l => l.text || '•••').join('\n');
+          const cacheKey  = `translate:${currentMedia?.id}:${lyricsLang}:synced`;
+          const res = await apiCache.get(
+            cacheKey,
+            () => ipc.online.translate({ text: batchText, targetLang: lyricsLang }),
+            60 // translations are stable — cache 1 hour
+          );
+          if (res?.ok) setTranslatedLines(res.text.split('\n'));
+        } else if (lyricsData.plain) {
+          const cacheKey = `translate:${currentMedia?.id}:${lyricsLang}:plain`;
+          const res = await apiCache.get(
+            cacheKey,
+            () => ipc.online.translate({ text: lyricsData.plain, targetLang: lyricsLang }),
+            60
+          );
+          if (res?.ok) setTranslatedPlain(res.text);
+        }
+      } catch (err) {
+        console.error('[Translate] Failed:', err);
+      } finally {
+        setTranslating(false);
+      }
+    };
+
+    // Seed from cache if available
+    const syncKey  = `translate:${currentMedia?.id}:${lyricsLang}:synced`;
+    const plainKey = `translate:${currentMedia?.id}:${lyricsLang}:plain`;
+    const cachedSync  = apiCache.peek(syncKey);
+    const cachedPlain = apiCache.peek(plainKey);
+    if (isSynced && cachedSync?.ok) {
+      setTranslatedLines(cachedSync.text.split('\n'));
+      return;
+    }
+    if (!isSynced && cachedPlain?.ok) {
+      setTranslatedPlain(cachedPlain.text);
+      return;
+    }
+
+    doTranslate();
+  }, [lyricsLang, hasLyrics]);
+
+  const LANG_OPTIONS = [
+    { code: 'original', label: 'Original' },
+    { code: 'en', label: '🇬🇧 English' },
+    { code: 'hi', label: '🇮🇳 Hindi' },
+    { code: 'pa', label: '🌾 Punjabi' },
+    { code: 'bho', label: '🌻 Bhojpuri' },
+    { code: 'mr', label: '🟠 Marathi' },
+    { code: 'ta', label: '🌺 Tamil' },
+    { code: 'te', label: '🌸 Telugu' },
+    { code: 'es', label: '🇪🇸 Spanish' },
+    { code: 'fr', label: '🇫🇷 French' },
+    { code: 'de', label: '🇩🇪 German' },
+    { code: 'ja', label: '🇯🇵 Japanese' },
+    { code: 'ko', label: '🇰🇷 Korean' },
+    { code: 'ar', label: '🇸🇦 Arabic' },
+    { code: 'zh-CN', label: '🇨🇳 Chinese' },
+  ];
 
   if (!currentMedia) return null;
 
@@ -575,13 +762,170 @@ export default function NowPlaying() {
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 15 }}
-                      className="w-full h-72 rounded-3xl glass border border-white/5 p-6 flex flex-col items-center justify-center text-center space-y-3"
+                      className="w-full h-72 md:h-[380px] rounded-3xl glass border border-white/5 flex flex-col min-h-0 overflow-hidden"
                     >
-                      <AlignLeft size={36} className="text-zinc-500 animate-pulse" />
-                      <h3 className="text-sm font-bold text-white">Lyrics Coming Soon</h3>
-                      <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
-                        We are formatting local metadata support to automatically fetch and align offline sync lyrics.
-                      </p>
+                      {/* Language selector header */}
+                      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/[0.06] flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <AlignLeft size={14} className="text-cyan-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white">Lyrics</span>
+                          {lyricsLang !== 'original' && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-bold">
+                              {LANG_OPTIONS.find(l => l.code === lyricsLang)?.label}
+                            </span>
+                          )}
+                        </div>
+                        {/* Language dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowLangMenu(v => !v)}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass border border-white/10 text-[10px] font-bold text-zinc-300 hover:text-white hover:border-white/20 transition-all"
+                          >
+                            <Languages size={11} />
+                            <span>{lyricsLang === 'original' ? 'Language' : LANG_OPTIONS.find(l => l.code === lyricsLang)?.label.slice(0,8)}</span>
+                          </button>
+                          <AnimatePresence>
+                            {showLangMenu && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full mt-1.5 right-0 z-50 glass-panel-premium border border-white/10 rounded-2xl shadow-2xl p-1.5 min-w-[140px] max-h-56 overflow-y-auto scrollbar-none"
+                              >
+                                {LANG_OPTIONS.map(lang => (
+                                  <button
+                                    key={lang.code}
+                                    onClick={() => { setLyricsLang(lang.code); setShowLangMenu(false); }}
+                                    className={`w-full text-left px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all ${
+                                      lyricsLang === lang.code
+                                        ? 'bg-cyan-500/20 text-cyan-300 font-black'
+                                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                                  >
+                                    {lang.label}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+
+                      {/* Lyrics content — premium animated view */}
+                      <div className="relative flex-grow min-h-0 overflow-hidden">
+
+                        {/* Top fade */}
+                        <div className="absolute top-0 left-0 right-0 h-10 z-10 pointer-events-none"
+                          style={{ background: 'linear-gradient(to bottom, rgba(10,10,14,0.95), transparent)' }}
+                        />
+                        {/* Bottom fade */}
+                        <div className="absolute bottom-0 left-0 right-0 h-14 z-10 pointer-events-none"
+                          style={{ background: 'linear-gradient(to top, rgba(10,10,14,0.95), transparent)' }}
+                        />
+
+                        <div
+                          ref={lyricsContainerRef}
+                          className="h-full overflow-y-auto px-5 scrollbar-none"
+                        >
+                          {lyricsLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                              <div className="relative">
+                                <div className="w-10 h-10 border-2 border-t-transparent border-cyan-400 rounded-full animate-spin" />
+                                <div className="absolute inset-1 border border-t-transparent border-violet-500/50 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.7s' }} />
+                              </div>
+                              <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest animate-pulse">Syncing lyrics...</p>
+                            </div>
+                          ) : !hasLyrics ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                                <Music size={28} className="text-zinc-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-white">No Lyrics Found</p>
+                                <p className="text-xs text-zinc-600 mt-1">We couldn't resolve lyrics for this track.</p>
+                              </div>
+                            </div>
+                          ) : translating ? (
+                            <div className="flex flex-col items-center justify-center h-full space-y-3">
+                              <div className="w-7 h-7 border-2 border-t-transparent border-violet-400 rounded-full animate-spin" />
+                              <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest animate-pulse">Translating...</p>
+                            </div>
+                          ) : isSynced ? (
+                            <div className="py-10 pb-24 space-y-1">
+                              {lyricsData.synced.map((line, idx) => {
+                                const active  = idx === activeIndex;
+                                const near    = Math.abs(idx - activeIndex) <= 2;
+                                const displayText = (lyricsLang !== 'original' && translatedLines[idx])
+                                  ? translatedLines[idx]
+                                  : (line.text || '•••');
+                                return (
+                                  <motion.div
+                                    key={`l-${idx}`}
+                                    ref={(el) => (lyricLinesRef.current[idx] = el)}
+                                    onClick={() => seekSeconds(line.time)}
+                                    animate={{
+                                      opacity: active ? 1 : near ? 0.55 : 0.22,
+                                      scale:   active ? 1.03 : 1,
+                                      filter:  active ? 'blur(0px)' : near ? 'blur(0.5px)' : 'blur(1.5px)',
+                                      y:       active ? 0 : 0,
+                                    }}
+                                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                    className="relative cursor-pointer select-none text-left rounded-2xl px-4 py-2.5 group"
+                                  >
+                                    {/* Active line highlight bar */}
+                                    {active && (
+                                      <motion.div
+                                        layoutId="lyricsActiveBg"
+                                        className="absolute inset-0 rounded-2xl"
+                                        style={{
+                                          background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
+                                          border: '1px solid rgba(255,255,255,0.08)',
+                                          backdropFilter: 'blur(12px)',
+                                        }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                                      />
+                                    )}
+
+                                    {/* Left accent bar on active */}
+                                    {active && (
+                                      <motion.div
+                                        layoutId="lyricsAccentBar"
+                                        className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full"
+                                        style={{ background: 'linear-gradient(to bottom, #67e8f9, #818cf8)' }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                                      />
+                                    )}
+
+                                    <span
+                                      className={`relative z-10 leading-snug font-display block ${
+                                        active
+                                          ? 'text-sm md:text-base font-black'
+                                          : 'text-xs md:text-sm font-semibold'
+                                      }`}
+                                      style={active ? {
+                                        color: '#ffffff',
+                                        textShadow: '0 0 20px rgba(103,232,249,0.6), 0 0 40px rgba(129,140,248,0.3)',
+                                      } : {
+                                        color: 'rgba(255,255,255,0.5)',
+                                      }}
+                                    >
+                                      {displayText}
+                                    </span>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div
+                              className="text-zinc-300 text-sm leading-loose whitespace-pre-line font-medium text-left py-8 pb-16 select-text"
+                              style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}
+                            >
+                              {(lyricsLang !== 'original' && translatedPlain) ? translatedPlain : lyricsData.plain}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </motion.div>
                   )}
 

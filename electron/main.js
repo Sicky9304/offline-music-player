@@ -7,6 +7,7 @@ import fs from 'fs';
 import './env.js';
 import { connectDatabase, disconnectDatabase, migrateThumbnails, migrateProfileAvatars, setMainWindow, getDatabaseStatus } from './database.js';
 import { setupLocalApi } from './localApi.js';
+import { setupOnlineApi, clearOnlineCache } from './onlineApi.js';
 import { MpvController } from './mpvController.js';
 
 // ─── Setup __dirname for ES modules ──────────────────────────────────────────
@@ -175,6 +176,7 @@ async function createWindow() {
   // ─── Setup all IPC handlers ───────────────────────────────────────────────
   mpv.init();
   setupLocalApi(ipcMain, mpv, mainWindow);
+  setupOnlineApi(ipcMain, mainWindow);
 
   ipcMain.on('win:reload', () => {
     console.log('[Main] Reloading window...');
@@ -307,6 +309,7 @@ app.on('before-quit', async (event) => {
     if (reconnectInterval) clearInterval(reconnectInterval);
     try { await mpv.stop(); } catch (_) {}
     await disconnectDatabase();
+    try { clearOnlineCache(); } catch (_) {}
     isQuitting = true;
     app.quit();
   }

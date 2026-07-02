@@ -5,7 +5,7 @@ import {
   Library, Video, Music, ListMusic, Heart, History,
   Settings, Palette, User, ChevronLeft, ChevronRight,
   Database, WifiOff, Home as HomeIcon, Search, Compass,
-  AudioLines
+  AudioLines, Globe, Download
 } from 'lucide-react';
 import { useLibrary } from '../../hooks/useLibrary.jsx';
 import EqualizerBars from '../player/EqualizerBars.jsx';
@@ -15,14 +15,16 @@ import ThreeDArtwork from '../player/ThreeDArtwork.jsx';
 import { getInitials } from '../../utils/formatters.js';
 
 const DISCOVER_ITEMS = [
-  { to: '/home',      icon: HomeIcon, label: 'Home' },
-  { to: '/library',   icon: Compass,  label: 'Browse' },
-  { to: '/music',     icon: Search,   label: 'Search' }
+  { to: '/home',       icon: HomeIcon, label: 'Home' },
+  { to: '/library',    icon: Compass,  label: 'Browse' },
+  { to: '/music',      icon: Search,   label: 'Search' },
+  { to: '/online-hub', icon: Globe,    label: 'Online Hub' }
 ];
 
 const LIBRARY_ITEMS = [
   { to: '/music',     icon: Music,     label: 'Music' },
   { to: '/videos',    icon: Video,     label: 'Videos' },
+  { to: '/downloads', icon: Download,  label: 'Downloads' },
 ];
 
 const COLLECTIONS_ITEMS = [

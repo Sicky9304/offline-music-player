@@ -108,6 +108,30 @@ export const ipc = {
     getAll: ()           => e.invoke('settings:getAll'),
   },
 
+  // Auth
+  auth: {
+    register: (username, password) => e.invoke('auth:register', { username, password }),
+    login:    (username, password) => e.invoke('auth:login', { username, password }),
+    logout:   ()                   => e.invoke('auth:logout'),
+    check:    ()                   => e.invoke('auth:check'),
+  },
+
+  // Online Music
+  online: {
+    search:           (query)         => e.invoke('online:search', { query }),
+    searchYouTube:    (query)         => e.invoke('online:searchYouTube', { query }),
+    searchITunes:     (query)         => e.invoke('online:searchITunes', { query }),
+    searchSaavn:      (query)         => e.invoke('online:searchSaavn', { query }),
+    resolveStreamUrl: (trackId, title, artist) => e.invoke('online:resolveStreamUrl', { trackId, title, artist }),
+    getTopCharts:     ()              => e.invoke('online:getTopCharts'),
+    getLyrics:        ({ artist, title, duration }) => e.invoke('online:getLyrics', { artist, title, duration }),
+    translate:        ({ text, targetLang }) => e.invoke('online:translate', { text, targetLang }),
+    downloadTrack:    (track, category) => e.invoke('online:downloadTrack', { track, category }),
+    deleteDownload:   (id)              => e.invoke('online:deleteDownload', id),
+    clearAllDownloads:()              => e.invoke('online:clearAllDownloads'),
+    showFile:         (filePath)        => e.invoke('online:showFile', filePath),
+  },
+
   // Profile
   profile: {
     get:          ()       => e.invoke('profile:get'),

@@ -30,6 +30,8 @@ const mediaSchema = new mongoose.Schema({
   playCount: { type: Number, default: 0 },
   favorite:  { type: Boolean, default: false },
   rating:    { type: Number, default: 0 },
+  isDownloaded:     { type: Boolean, default: false },
+  downloadCategory: { type: String, default: '' },
 }, { timestamps: true });
 
 // ─── Playlist Schema ─────────────────────────────────────────────────────────
@@ -69,11 +71,18 @@ const profileSchema = new mongoose.Schema({
   bio:                 { type: String, default: '' },
 }, { timestamps: true });
 
+// ─── User Schema ─────────────────────────────────────────────────────────────
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+}, { timestamps: true });
+
 const MediaModel    = mongoose.model('Media', mediaSchema);
 const PlaylistModel = mongoose.model('Playlist', playlistSchema);
 const HistoryModel  = mongoose.model('History', historySchema);
 const SettingsModel = mongoose.model('Settings', settingsSchema);
 const ProfileModel  = mongoose.model('Profile', profileSchema);
+const UserModel     = mongoose.model('User', userSchema);
 
 import { LocalModel } from './localJsonDb.js';
 
@@ -82,6 +91,7 @@ const localPlaylist = new LocalModel('playlists');
 const localHistory = new LocalModel('history');
 const localSettings = new LocalModel('settings');
 const localProfile = new LocalModel('profile', [{ uid: 'default', name: 'User' }]);
+const localUser = new LocalModel('users');
 
 export const Media = {
   find(query) {
@@ -322,6 +332,49 @@ export const Profile = {
   }
 };
 
+export const User = {
+  find(query) {
+    if (isConnected) {
+      return UserModel.find(query);
+    } else {
+      return localUser.find(query);
+    }
+  },
+  async findOne(query) {
+    if (isConnected) {
+      return UserModel.findOne(query);
+    } else {
+      return localUser.findOne(query);
+    }
+  },
+  async create(data) {
+    if (isConnected) {
+      const doc = await UserModel.create(data);
+      try {
+        await localUser.create(doc.toObject());
+      } catch (err) {
+        console.error('[Mirror] User create failed:', err.message);
+      }
+      return doc;
+    } else {
+      return localUser.create(data);
+    }
+  },
+  async deleteOne(query) {
+    if (isConnected) {
+      const res = await UserModel.deleteOne(query);
+      try {
+        await localUser.deleteOne(query);
+      } catch (err) {
+        console.error('[Mirror] User deleteOne failed:', err.message);
+      }
+      return res;
+    } else {
+      return localUser.deleteOne(query);
+    }
+  }
+};
+
 let isConnected = false;
 let isSyncing = false;
 let mainWindowRef = null;
@@ -496,6 +549,36 @@ export async function syncDatabase() {
         localProfile.saveAll([remoteProfileItem.toObject()]);
       }
     }
+
+    // 6. Sync Users
+    const localUsers = localUser.getAll();
+    const remoteUsers = await UserModel.find({});
+    const remoteUserMap = new Map(remoteUsers.map(u => [u.username, u]));
+    const localUserMap = new Map(localUsers.map(u => [u.username, u]));
+    const allUsernames = new Set([...localUserMap.keys(), ...remoteUserMap.keys()]);
+    const mergedUsers = [];
+
+    for (const username of allUsernames) {
+      const local = localUserMap.get(username);
+      const remote = remoteUserMap.get(username);
+
+      if (local && !remote) {
+        const created = await UserModel.create(local);
+        mergedUsers.push(created.toObject());
+      } else if (remote && !local) {
+        mergedUsers.push(remote.toObject());
+      } else if (local && remote) {
+        const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
+        const remoteTime = new Date(remote.updatedAt || remote.createdAt || 0).getTime();
+        if (localTime > remoteTime) {
+          const updated = await UserModel.findOneAndUpdate({ username }, local, { new: true });
+          mergedUsers.push(updated.toObject());
+        } else {
+          mergedUsers.push(remote.toObject());
+        }
+      }
+    }
+    localUser.saveAll(mergedUsers);
 
     console.log('[DB Sync] Database synchronization completed successfully.');
 

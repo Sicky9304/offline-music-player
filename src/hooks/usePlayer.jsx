@@ -3,6 +3,7 @@ import { ipc } from '../utils/ipc.js';
 import { shuffle } from '../utils/formatters.js';
 import { useSettings } from './useSettings.jsx';
 import { useLibrary } from './useLibrary.jsx';
+import { useToast } from '../components/ui/Toast.jsx';
 
 const PlayerContext = createContext(null);
 
@@ -20,8 +21,10 @@ export const BUILTIN_PRESETS = [
 ];
 
 export function PlayerProvider({ children }) {
+  const toast = useToast();
   const audioRef = useRef(null);
   const [currentMedia, setCurrentMedia]   = useState(null);
+  const currentMediaRef = useRef(null);
   const [queue,        setQueue]          = useState([]);
   const [queueIndex,   setQueueIndex]     = useState(-1);
   const [isPlaying,    setIsPlaying]      = useState(false);
@@ -82,6 +85,10 @@ export function PlayerProvider({ children }) {
       setCurrentMedia(match);
     }
   }, [library, currentMedia]);
+
+  useEffect(() => {
+    currentMediaRef.current = currentMedia;
+  }, [currentMedia]);
 
   // Web Audio API refs for Dolby Atmos spatializer
   const audioCtxRef = useRef(null);
@@ -329,13 +336,21 @@ export function PlayerProvider({ children }) {
   // Create audio element
   useEffect(() => {
     const audio = document.createElement('video');
+    audio.crossOrigin = "anonymous"; // Enable cross-origin streaming with Web Audio API (fixes CORS muting)
     audio.volume   = volume / 100;
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
-      setDuration(audio.duration || 0);
-      setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
+      
+      let dur = audio.duration;
+      const meta = currentMediaRef.current;
+      if ((!dur || dur === Infinity || isNaN(dur)) && meta && meta.duration && !isNaN(meta.duration)) {
+        dur = meta.duration;
+      }
+      
+      setDuration(dur || 0);
+      setProgress(dur ? audio.currentTime / dur : 0);
     };
     const onEnded = () => handleEndedRef.current && handleEndedRef.current();
     const onPlay  = () => setIsPlaying(true);
@@ -370,10 +385,40 @@ export function PlayerProvider({ children }) {
       setQueueIndex(idx >= 0 ? idx : startIndex);
     }
 
-    setCurrentMedia(media);
+    let targetMedia = { ...media };
+    const isOnline = media.isOnline || media.id?.startsWith('online-') || media.filePath === 'online' || media.filePath?.startsWith('http');
+
+    // Skip tracks longer than 10 minutes (600 seconds)
+    if (isOnline && media.duration > 600) {
+      toast.error('Songs longer than 10 minutes cannot be played online.');
+      return;
+    }
+
+    // Resolve stream URL for online full play (if not playing 30s preview only)
+    if (isOnline && !media.isOnlinePreview) {
+      try {
+        const res = await ipc.online.resolveStreamUrl(media.id, media.title, media.artist);
+        if (res && res.ok && res.url) {
+          targetMedia.filePath = res.url;
+          targetMedia.isOnline = true;
+        } else {
+          targetMedia.filePath = media.previewUrl || media.filePath;
+        }
+      } catch (err) {
+        console.error('[Player] Stream resolution failed, using fallback:', err);
+        targetMedia.filePath = media.previewUrl || media.filePath;
+      }
+    }
+
+    setCurrentMedia(targetMedia);
+
+    // Safety fallback: default type to 'audio' for online tracks or when type is missing
+    if (!targetMedia.type) {
+      targetMedia.type = 'audio';
+    }
 
     // For audio: use HTML5 Audio
-    if (media.type === 'audio') {
+    if (targetMedia.type === 'audio') {
       setMpvMode(false);
       const audio = audioRef.current;
       if (audio) {
@@ -381,9 +426,17 @@ export function PlayerProvider({ children }) {
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           audioCtxRef.current.resume();
         }
-        const src = media.filePath.replace(/\\/g, '/');
-        const fileUrl = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
-        audio.src = encodeURI(fileUrl);
+        
+        let fileUrl;
+        if (targetMedia.filePath.startsWith('http://') || targetMedia.filePath.startsWith('https://')) {
+          fileUrl = targetMedia.filePath;
+        } else {
+          const src = targetMedia.filePath.replace(/\\/g, '/');
+          fileUrl = `file:///${src.startsWith('/') ? src.slice(1) : src}`;
+          fileUrl = encodeURI(fileUrl);
+        }
+        
+        audio.src = fileUrl;
         audio.volume = volume / 100;
         audio.playbackRate = speed;
         try { await audio.play(); } catch (e) { console.error('[Audio] Play error:', e); }
@@ -398,17 +451,17 @@ export function PlayerProvider({ children }) {
       setIsPlaying(false);
       
       // Open the custom video player window
-      ipc.video.open(media.filePath);
+      ipc.video.open(targetMedia.filePath);
     }
 
     // Add to history
     try {
       await addHistory({
-        mediaId:  media.id,
-        filePath: media.filePath,
-        title:    media.title,
-        type:     media.type,
-        duration: media.duration || 0,
+        mediaId:  targetMedia.id,
+        filePath: targetMedia.filePath,
+        title:    targetMedia.title,
+        type:     targetMedia.type,
+        duration: targetMedia.duration || 0,
         position: 0,
       });
     } catch (_) {}
@@ -474,22 +527,40 @@ export function PlayerProvider({ children }) {
 
   const seekTo = useCallback((frac) => {
     const audio = audioRef.current;
-    if (!audio || !audio.duration) return;
+    if (!audio) return;
+    
+    let dur = audio.duration;
+    const meta = currentMediaRef.current;
+    if ((!dur || dur === Infinity || isNaN(dur)) && meta && meta.duration && !isNaN(meta.duration)) {
+      dur = meta.duration;
+    }
+    
+    if (!dur) return;
+    
     initAudioGraph();
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
     }
-    audio.currentTime = frac * audio.duration;
+    audio.currentTime = frac * dur;
   }, [initAudioGraph]);
 
   const seekSeconds = useCallback((secs) => {
     const audio = audioRef.current;
     if (!audio) return;
+    
+    let dur = audio.duration;
+    const meta = currentMediaRef.current;
+    if ((!dur || dur === Infinity || isNaN(dur)) && meta && meta.duration && !isNaN(meta.duration)) {
+      dur = meta.duration;
+    }
+    
     initAudioGraph();
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume();
     }
-    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + secs));
+    
+    const limitDur = dur || Infinity;
+    audio.currentTime = Math.max(0, Math.min(limitDur, audio.currentTime + secs));
   }, [initAudioGraph]);
 
   const changeVolume = useCallback((vol) => {

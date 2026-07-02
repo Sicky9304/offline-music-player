@@ -1,6 +1,6 @@
 {
   "name": "music-hub-player",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Offline-first desktop music and video player",
   "type": "module",
   "main": "electron/main.js",
@@ -14,6 +14,7 @@
     "package": "node -e \"const fs = require('fs'); const path = require('path'); const dir = 'dist-electron'; if (fs.existsSync(dir)) { fs.readdirSync(dir).forEach(f => { if (f.endsWith('.exe') || f.endsWith('.blockmap') || f === 'latest.yml') fs.unlinkSync(path.join(dir, f)); })} \" && npm run build && node -r dotenv/config node_modules/electron-builder/cli.js --publish always"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "electron-updater": "^6.8.9",

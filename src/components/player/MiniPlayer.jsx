@@ -8,7 +8,7 @@
 // Imports may need minor adjustment depending on your folder structure.
 
 import { motion } from "framer-motion";
-import { ChevronUp, Heart, Sliders } from "lucide-react";
+import { ChevronUp, Heart, Sliders, AlignLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { usePlayer, REPEAT_NONE } from "../../hooks/usePlayer.jsx";
@@ -21,6 +21,7 @@ import ThreeDArtwork from "./ThreeDArtwork.jsx";
 import ProgressBar from "./ProgressBar.jsx";
 import PlaybackControls from "./PlaybackControls.jsx";
 import VolumeControl from "./VolumeControl.jsx";
+import LyricsPanel from "./LyricsPanel.jsx";
 
 export default function MiniPlayer() {
 
@@ -51,6 +52,7 @@ export default function MiniPlayer() {
 
   const [imgError, setImgError] = useState(false);
   const [showEqPopover, setShowEqPopover] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
 
   useEffect(() => {
     setImgError(false);
@@ -221,6 +223,14 @@ export default function MiniPlayer() {
           />
 
           <button
+            onClick={() => setShowLyrics(!showLyrics)}
+            className={`rounded-xl p-2 transition hover:bg-white/10 ${showLyrics ? "bg-cyan-500/20 text-cyan-400" : "text-zinc-500 hover:text-white"}`}
+            title="Toggle Lyrics"
+          >
+            <AlignLeft size={18} />
+          </button>
+
+          <button
             onClick={() => setShowNowPlaying(true)}
             className="rounded-xl p-2 transition hover:bg-white/10 text-zinc-500 hover:text-white"
           >
@@ -230,6 +240,8 @@ export default function MiniPlayer() {
         </div>
 
       </div>
+
+      <LyricsPanel isOpen={showLyrics} onClose={() => setShowLyrics(false)} />
 
     </motion.div>
   );
